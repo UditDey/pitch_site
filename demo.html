@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Style Demo</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Math rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+
+    <!-- Code highlighting -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-verilog.min.js"></script>
+
+    <!-- Tooltips -->
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/animations/shift-away.css">
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <a href="index.html" class="back-link">← Home</a>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <h1>Style Demo Page</h1>
+            <p class="subtitle">Showcasing all available elements</p>
+
+            <h2>Typography</h2>
+
+            <p>
+                This is a regular paragraph with <strong>bold text</strong> and <em>italic text</em>.
+                Here's a <a href="https://en.wikipedia.org/wiki/Multistage_interconnection_networks">link with
+                    tooltip</a>. You can also have <code>inline code</code>
+                for things like variable names or short snippets.
+            </p>
+
+            <p>
+                Second paragraph to show spacing. Lorem ipsum dolor sit amet, consectetur adipiscing
+                elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+            </p>
+
+            <h3>This is an H3 Subheading</h3>
+
+            <p>Content under the subheading. The hierarchy goes H1 → H2 → H3.</p>
+
+            <div class="dot-break"></div>
+
+            <h2>Lists</h2>
+
+            <p>Unordered list:</p>
+            <ul>
+                <li>First item</li>
+                <li>Second item with more text to show wrapping behavior</li>
+                <li>Third item</li>
+            </ul>
+
+            <p>Ordered list:</p>
+            <ol>
+                <li>Step one</li>
+                <li>Step two</li>
+                <li>Step three</li>
+            </ol>
+
+            <hr>
+
+            <h2>Callout Boxes</h2>
+
+            <div class="callout note">
+                <strong>Note</strong>
+                <p>This is a note callout. Use it for technical context, caveats, or additional details that support the
+                    main text.</p>
+            </div>
+
+            <div class="callout warning">
+                <strong>Warning</strong>
+                <p>This is a warning callout. Use it for limitations, caveats, or things the reader should be careful
+                    about.</p>
+            </div>
+
+            <div class="callout conclusion">
+                <strong>Key Takeaway</strong>
+                <p>This is a conclusion callout. Use it for the main point you want readers to remember.</p>
+            </div>
+
+            <div class="callout aside">
+                <strong>Aside</strong>
+                <p>This is an aside callout. Use it for tangential information that's interesting but not essential.</p>
+            </div>
+
+            <hr>
+
+            <h2>Figures</h2>
+
+            <h3>Regular Figure (centered)</h3>
+            <figure>
+                <img src="img/diagram-placeholder.svg" alt="Placeholder diagram">
+                <figcaption>Figure 1: A regular centered figure with caption.</figcaption>
+            </figure>
+
+            <h3>Side Figure</h3>
+            <figure class="side">
+                <img src="img/diagram-placeholder.svg" alt="Side diagram">
+                <figcaption>Side figure</figcaption>
+            </figure>
+            <p>
+                This text wraps around the side figure. The figure floats to the right and takes up
+                about 45% of the width. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+                veniam, quis nostrud exercitation ullamco laboris.
+            </p>
+            <p>
+                Additional paragraph still wrapping. Duis aute irure dolor in reprehenderit in
+                voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+            </p>
+
+            <h3>Side Figure (breakout)</h3>
+            <figure class="side breakout">
+                <img src="img/diagram-placeholder.svg" alt="Breakout diagram">
+                <figcaption>Breakout figure</figcaption>
+            </figure>
+            <p>
+                This is a breakout side figure — it extends beyond the content width into the margin.
+                Good for when you want to give an image more presence without making it full-width.
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+            </p>
+            <p>
+                More wrapping text. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                Ut enim ad minim veniam, quis nostrud exercitation.
+            </p>
+
+            <hr>
+
+            <h2>Math (KaTeX)</h2>
+
+            <p>
+                Inline math: The complexity is $O(\log N)$ compared to $O(N^2)$ for crossbars.
+                Variables like $x_i$ and $\alpha$ render inline with text.
+            </p>
+
+            <p>Display math (centered block):</p>
+
+            $$\text{Switches}_{\text{MIN}} = \frac{N}{2} \cdot \log_2(N)$$
+
+            <p>A more complex example:</p>
+
+            $$\sum_{i=0}^{n} \frac{x^i}{i!} = e^x$$
+
+            <p>Comparison:</p>
+
+            $$\text{Crossbar: } N^2 = 65536 \text{ switches for } N=256$$
+            $$\text{MIN: } \frac{N}{2} \cdot \log_2(N) = 1024 \text{ switches}$$
+
+            <hr>
+
+            <h2>Code Blocks</h2>
+
+            <h3>Plain code (no highlighting)</h3>
+            <pre><code>typedef struct packed {
+  bit valid;
+  bit [ADDR_WIDTH-1:0] addr;
+} ctrl_packet;</code></pre>
+
+            <h3>Verilog (syntax highlighted)</h3>
+            <pre><code class="language-verilog">module ctrl_switch #(
+  parameter ADDR_WIDTH = 3,
+  parameter STAGE_BIT = 0
+) (
+  input wire clk,
+  input wire rst,
+  input wire [ADDR_WIDTH:0] in0,
+  input wire [ADDR_WIDTH:0] in1,
+  output reg [ADDR_WIDTH:0] out0,
+  output reg [ADDR_WIDTH:0] out1
+);
+
+  wire do_swap = in0[STAGE_BIT];
+  
+  always @(posedge clk) begin
+    if (rst) begin
+      out0 <= 0;
+      out1 <= 0;
+    end else begin
+      out0 <= do_swap ? in1 : in0;
+      out1 <= do_swap ? in0 : in1;
+    end
+  end
+
+endmodule</code></pre>
+
+            <h3>Python (syntax highlighted)</h3>
+            <pre><code class="language-python">import torch
+import torch.nn as nn
+
+class CodebookLayer(nn.Module):
+    def __init__(self, num_codes, code_dim):
+        super().__init__()
+        self.codebook = nn.Parameter(torch.randn(num_codes, code_dim))
+    
+    def forward(self, indices):
+        # indices: [batch, seq_len]
+        # returns: [batch, seq_len, code_dim]
+        return self.codebook[indices]
+
+# Usage
+layer = CodebookLayer(num_codes=256, code_dim=64)
+codes = layer(torch.randint(0, 256, (32, 128)))</code></pre>
+
+            <hr>
+
+            <h2>Separators</h2>
+
+            <p>Above is an <code>&lt;hr&gt;</code> (horizontal rule). Below is a <code>.dot-break</code>:</p>
+
+            <div class="dot-break"></div>
+
+            <p>The dot break is softer, good for minor section transitions.</p>
+
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p><a href="mailto:demo@example.com">demo@example.com</a> · <a href="#">LinkedIn</a></p>
+        </div>
+    </footer>
+
+    <script>
+        // Auto-tooltip for all links
+        document.querySelectorAll('a[href]').forEach(link => {
+            if (link.hasAttribute('data-tippy-content')) return; // skip manual ones
+
+            const href = link.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('mailto:')) return;
+
+            if (href.startsWith('http')) {
+                // External link: show domain + add icon
+                try {
+                    const url = new URL(href);
+                    link.setAttribute('data-tippy-content', url.hostname);
+                    link.classList.add('external');
+                } catch (e) { }
+            } else {
+                // Internal link: show page name
+                const page = href.split('/').pop().replace('.html', '');
+                if (page) {
+                    link.setAttribute('data-tippy-content', page);
+                }
+            }
+        });
+
+        tippy('[data-tippy-content]', {
+            animation: 'shift-away',
+            arrow: true,
+            theme: 'custom'
+        });
+    </script>
+</body>
+
+</html>

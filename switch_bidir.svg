@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1004 560" width="1004" height="560">
+  <style>
+    .switch-box { fill: rgba(240, 240, 245, 0.8); stroke: #000; stroke-width: 1.5; }
+    .terminal { fill: none; stroke: #555; stroke-width: 1.5; }
+    .routing { fill: none; stroke-width: 3.5; stroke-linecap: round; }
+    .routing-blue { stroke: #2563eb; }
+    .routing-orange { stroke: #ea580c; }
+    .routing-dropped-blue { fill: none; stroke: #2563eb; stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 8,5; opacity: 0.7; }
+    .drop-x { fill: none; stroke: #888; stroke-width: 3.5; stroke-linecap: round; }
+    .node { fill: #333; }
+    .arrow-line { fill: none; stroke: #333; stroke-width: 2.5; }
+    .arrowhead { fill: #333; }
+    .arrow-label { font-family: system-ui, -apple-system, sans-serif; font-size: 18px; fill: #000; font-weight: bold; }
+  </style>
+  <g id="switch-pass-through-0">
+    <rect class="switch-box" x="180" y="110" width="100" height="80" rx="6"/>
+    <path class="terminal" d="M210.0,80 L210.0,110"/>
+    <path class="terminal" d="M250.0,80 L250.0,110"/>
+    <path class="terminal" d="M210.0,190 L210.0,220"/>
+    <path class="terminal" d="M250.0,190 L250.0,220"/>
+    <circle class="node" cx="210.0" cy="80" r="5"/>
+    <circle class="node" cx="250.0" cy="80" r="5"/>
+    <circle class="node" cx="210.0" cy="220" r="5"/>
+    <circle class="node" cx="250.0" cy="220" r="5"/>
+    <path class="routing routing-blue" d="M210.0,120 C210.0,150.0 210.0,150.0 210.0,180"/>
+    <path class="routing routing-orange" d="M250.0,120 C250.0,150.0 250.0,150.0 250.0,180"/>
+    <path class="arrow-line" d="M140,80 L140,208"/>
+    <polygon class="arrowhead" points="140,220 134,208 146,208"/>
+    <text class="arrow-label" x="126" y="156.0" text-anchor="end">Pass-through</text>
+    <path class="arrow-line" d="M320,220 L320,92"/>
+    <polygon class="arrowhead" points="320,80 314,92 326,92"/>
+    <text class="arrow-label" x="334" y="156.0" text-anchor="start">Pass-through</text>
+  </g>
+  <g id="switch-swap-1">
+    <rect class="switch-box" x="680" y="110" width="100" height="80" rx="6"/>
+    <path class="terminal" d="M710.0,80 L710.0,110"/>
+    <path class="terminal" d="M750.0,80 L750.0,110"/>
+    <path class="terminal" d="M710.0,190 L710.0,220"/>
+    <path class="terminal" d="M750.0,190 L750.0,220"/>
+    <circle class="node" cx="710.0" cy="80" r="5"/>
+    <circle class="node" cx="750.0" cy="80" r="5"/>
+    <circle class="node" cx="710.0" cy="220" r="5"/>
+    <circle class="node" cx="750.0" cy="220" r="5"/>
+    <path class="routing routing-blue" d="M710.0,120 C710.0,160.0 750.0,140.0 750.0,180"/>
+    <path class="routing routing-orange" d="M750.0,120 C750.0,160.0 710.0,140.0 710.0,180"/>
+    <path class="arrow-line" d="M640,80 L640,208"/>
+    <polygon class="arrowhead" points="640,220 634,208 646,208"/>
+    <text class="arrow-label" x="626" y="156.0" text-anchor="end">Swap</text>
+    <path class="arrow-line" d="M820,220 L820,92"/>
+    <polygon class="arrowhead" points="820,80 814,92 826,92"/>
+    <text class="arrow-label" x="834" y="156.0" text-anchor="start">Swap</text>
+  </g>
+  <g id="switch-left-merge-2">
+    <rect class="switch-box" x="180" y="350" width="100" height="80" rx="6"/>
+    <path class="terminal" d="M210.0,320 L210.0,350"/>
+    <path class="terminal" d="M250.0,320 L250.0,350"/>
+    <path class="terminal" d="M210.0,430 L210.0,460"/>
+    <path class="terminal" d="M250.0,430 L250.0,460"/>
+    <circle class="node" cx="210.0" cy="320" r="5"/>
+    <circle class="node" cx="250.0" cy="320" r="5"/>
+    <circle class="node" cx="210.0" cy="460" r="5"/>
+    <circle class="node" cx="250.0" cy="460" r="5"/>
+    <path class="routing routing-blue" d="M210.0,360 C210.0,390.0 210.0,390.0 210.0,420"/>
+    <path class="routing routing-orange" d="M250.0,360 C250.0,405.0 210.0,375.0 210.0,420"/>
+    <path class="arrow-line" d="M140,320 L140,448"/>
+    <polygon class="arrowhead" points="140,460 134,448 146,448"/>
+    <text class="arrow-label" x="126" y="396.0" text-anchor="end">Left-merge</text>
+    <path class="arrow-line" d="M320,460 L320,332"/>
+    <polygon class="arrowhead" points="320,320 314,332 326,332"/>
+    <text class="arrow-label" x="334" y="396.0" text-anchor="start">Left-duplicate</text>
+  </g>
+  <g id="switch-right-blocking-3">
+    <rect class="switch-box" x="680" y="350" width="100" height="80" rx="6"/>
+    <path class="terminal" d="M710.0,320 L710.0,350"/>
+    <path class="terminal" d="M750.0,320 L750.0,350"/>
+    <path class="terminal" d="M710.0,430 L710.0,460"/>
+    <path class="terminal" d="M750.0,430 L750.0,460"/>
+    <circle class="node" cx="710.0" cy="320" r="5"/>
+    <circle class="node" cx="750.0" cy="320" r="5"/>
+    <circle class="node" cx="710.0" cy="460" r="5"/>
+    <circle class="node" cx="750.0" cy="460" r="5"/>
+    <path class="routing routing-orange" d="M750.0,360 C750.0,390.0 750.0,390.0 750.0,420"/>
+    <path class="routing-dropped-blue" d="M710.0,360 Q710.0,378.0 735.0,390.0"/>
+    <path class="drop-x" d="M728.0,383.0 L742.0,397.0 M742.0,383.0 L728.0,397.0"/>
+    <path class="arrow-line" d="M640,320 L640,448"/>
+    <polygon class="arrowhead" points="640,460 634,448 646,448"/>
+    <text class="arrow-label" x="626" y="396.0" text-anchor="end">Right-blocking</text>
+    <path class="arrow-line" d="M820,460 L820,332"/>
+    <polygon class="arrowhead" points="820,320 814,332 826,332"/>
+    <text class="arrow-label" x="834" y="396.0" text-anchor="start">Right-only copy</text>
+  </g>
+</svg>

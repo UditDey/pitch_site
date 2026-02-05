@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 305" width="500" height="305">
+  <style>
+    .switch-box { fill: rgba(240, 240, 245, 0.8); stroke: #000; stroke-width: 1.5; }
+    .terminal { fill: none; stroke: #555; stroke-width: 1.5; }
+    .routing { fill: none; stroke-width: 4; stroke-linecap: round; }
+    .routing-blue { stroke: #2563eb; }
+    .routing-orange { stroke: #ea580c; }
+    .routing-dropped { fill: none; stroke: #ea580c; stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 8,5; opacity: 0.7; }
+    .routing-dropped-blue { fill: none; stroke: #2563eb; stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 8,5; opacity: 0.7; }
+    .drop-x { fill: none; stroke: #888; stroke-width: 3.5; stroke-linecap: round; }
+    .node { fill: #333; }
+    .caption { font-family: system-ui, -apple-system, sans-serif; font-size: 20px; fill: #000; font-weight: bold; }
+  </style>
+  <g id="switch-conflict-left">
+    <rect class="switch-box" x="60" y="95" width="120" height="100" rx="6"/>
+    <path class="terminal" d="M96.0,60 L96.0,95"/>
+    <path class="terminal" d="M144.0,60 L144.0,95"/>
+    <path class="terminal" d="M96.0,195 L96.0,230"/>
+    <path class="terminal" d="M144.0,195 L144.0,230"/>
+    <circle class="node" cx="96.0" cy="60" r="5"/>
+    <circle class="node" cx="144.0" cy="60" r="5"/>
+    <circle class="node" cx="96.0" cy="230" r="5"/>
+    <circle class="node" cx="144.0" cy="230" r="5"/>
+    <path class="routing routing-orange" d="M144.0,105 C144.0,155.0 96.0,135.0 96.0,185"/>
+    <path class="routing-dropped-blue" d="M96.0,105 L96.0,140.0"/>
+    <path class="drop-x" d="M89.0,133.0 L103.0,147.0 M103.0,133.0 L89.0,147.0"/>
+    <text class="caption" x="120.0" y="285" text-anchor="middle">Left-blocking</text>
+  </g>
+  <g id="switch-conflict-right">
+    <rect class="switch-box" x="280" y="95" width="120" height="100" rx="6"/>
+    <path class="terminal" d="M316.0,60 L316.0,95"/>
+    <path class="terminal" d="M364.0,60 L364.0,95"/>
+    <path class="terminal" d="M316.0,195 L316.0,230"/>
+    <path class="terminal" d="M364.0,195 L364.0,230"/>
+    <circle class="node" cx="316.0" cy="60" r="5"/>
+    <circle class="node" cx="364.0" cy="60" r="5"/>
+    <circle class="node" cx="316.0" cy="230" r="5"/>
+    <circle class="node" cx="364.0" cy="230" r="5"/>
+    <path class="routing routing-orange" d="M364.0,105 C364.0,145.0 364.0,145.0 364.0,185"/>
+    <path class="routing-dropped-blue" d="M316.0,105 Q316.0,132.5 340.0,145.0"/>
+    <path class="drop-x" d="M333.0,138.0 L347.0,152.0 M347.0,138.0 L333.0,152.0"/>
+    <text class="caption" x="340.0" y="285" text-anchor="middle">Right-blocking</text>
+  </g>
+</svg>

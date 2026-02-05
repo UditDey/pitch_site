@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 340" width="620" height="340">
+  <style>
+    .line { fill: none; stroke: #000; stroke-width: 2; }
+    .node { fill: #333; }
+    .arrow { fill: none; stroke: #000; stroke-width: 3; }
+    .arrowhead { fill: #000; }
+    .label { font-family: system-ui, sans-serif; font-size: 18px; fill: #000; font-weight: bold; }
+    .sublabel { font-family: system-ui, sans-serif; font-size: 13px; fill: #000; }
+  </style>
+  <g id="fanin">
+    <circle class="node" cx="63.75" cy="90" r="4"/>
+    <circle class="node" cx="91.25" cy="90" r="4"/>
+    <circle class="node" cx="118.75" cy="90" r="4"/>
+    <circle class="node" cx="146.25" cy="90" r="4"/>
+    <circle class="node" cx="173.75" cy="90" r="4"/>
+    <circle class="node" cx="201.25" cy="90" r="4"/>
+    <circle class="node" cx="228.75" cy="90" r="4"/>
+    <circle class="node" cx="256.25" cy="90" r="4"/>
+    <path class="line" d="M63.75,90 L77.5,149.4"/>
+    <path class="line" d="M91.25,90 L77.5,149.4"/>
+    <circle class="node" cx="77.5" cy="149.4" r="4"/>
+    <path class="line" d="M77.5,149.4 L98.125,208.8"/>
+    <path class="line" d="M118.75,90 L98.125,208.8"/>
+    <circle class="node" cx="98.125" cy="208.8" r="4"/>
+    <path class="line" d="M98.125,208.8 L94.0,270"/>
+    <circle class="node" cx="94.0" cy="270" r="4"/>
+    <path class="line" d="M146.25,90 L160.0,149.4"/>
+    <path class="line" d="M173.75,90 L160.0,149.4"/>
+    <circle class="node" cx="160.0" cy="149.4" r="4"/>
+    <path class="line" d="M160.0,149.4 L160.0,270"/>
+    <circle class="node" cx="160.0" cy="270" r="4"/>
+    <path class="line" d="M228.75,90 L242.5,149.4"/>
+    <path class="line" d="M256.25,90 L242.5,149.4"/>
+    <circle class="node" cx="242.5" cy="149.4" r="4"/>
+    <path class="line" d="M242.5,149.4 L226.0,270"/>
+    <path class="line" d="M201.25,90 L226.0,270"/>
+    <circle class="node" cx="226.0" cy="270" r="4"/>
+  </g>
+  <text class="label" x="160.0" y="75" text-anchor="middle">Fan-in</text>
+  <path class="arrow" d="M285,180.0 L335,180.0"/>
+  <polygon class="arrowhead" points="340,180.0 327,174.0 327,186.0"/>
+  <text class="sublabel" x="310.0" y="170.0" text-anchor="middle">flip</text>
+  <g id="fanout">
+    <circle class="node" cx="394.0" cy="90" r="4"/>
+    <circle class="node" cx="460.0" cy="90" r="4"/>
+    <circle class="node" cx="526.0" cy="90" r="4"/>
+    <path class="line" d="M394.0,90 L398.125,151.2"/>
+    <circle class="node" cx="398.125" cy="151.2" r="4"/>
+    <path class="line" d="M398.125,151.2 L377.5,210.6"/>
+    <path class="line" d="M398.125,151.2 L418.75,270"/>
+    <circle class="node" cx="377.5" cy="210.6" r="4"/>
+    <circle class="node" cx="418.75" cy="270" r="4"/>
+    <path class="line" d="M377.5,210.6 L363.75,270"/>
+    <path class="line" d="M377.5,210.6 L391.25,270"/>
+    <circle class="node" cx="363.75" cy="270" r="4"/>
+    <circle class="node" cx="391.25" cy="270" r="4"/>
+    <path class="line" d="M460.0,90 L460.0,210.6"/>
+    <circle class="node" cx="460.0" cy="210.6" r="4"/>
+    <path class="line" d="M460.0,210.6 L446.25,270"/>
+    <path class="line" d="M460.0,210.6 L473.75,270"/>
+    <circle class="node" cx="446.25" cy="270" r="4"/>
+    <circle class="node" cx="473.75" cy="270" r="4"/>
+    <path class="line" d="M526.0,90 L501.25,270"/>
+    <path class="line" d="M526.0,90 L542.5,210.6"/>
+    <circle class="node" cx="542.5" cy="210.6" r="4"/>
+    <circle class="node" cx="501.25" cy="270" r="4"/>
+    <path class="line" d="M542.5,210.6 L528.75,270"/>
+    <path class="line" d="M542.5,210.6 L556.25,270"/>
+    <circle class="node" cx="528.75" cy="270" r="4"/>
+    <circle class="node" cx="556.25" cy="270" r="4"/>
+  </g>
+  <text class="label" x="460.0" y="75" text-anchor="middle">Fan-out</text>
+</svg>

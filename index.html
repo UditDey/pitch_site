@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Inference Optimization Proposals</title>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="common.js"></script>
+</head>
+
+<body>
+    <main>
+        <div class="container">
+            <h1>Improving Memory Efficiency in LLM Inference</h1>
+            <p class="subtitle">Three Practical Proposals</p>
+
+            <p>Hello! 👋</p>
+            <p>
+                I am a junior engineer in the semiconductor industry with a strong interest in
+                hardware design. Recently, inspired by the persistent DRAM crisis (which is
+                directly being caused by demand from AI inference), I sought to explore
+                techniques for making LLM inference less memory hungry.
+            </p>
+
+            <p>
+                This page documents three of my developments, which I believe now are practical
+                solutions and can significantly <b>reduce memory consumption in LLM weights and KV cache,</b>
+                yielding both performance and economic benefits.
+            </p>
+
+            <div class="callout aside">
+                <strong>The Motivation</strong>
+                <p>
+                    There isn't enough DRAM in the world to feed the datacentres as is. It is <i>absurd</i>
+                    to think that recent radical decisions (like Micron leaving the consumer market <i>entirely</i>)
+                    can be sustained long term. Once the dust settles, the future of mass-scale LLMs
+                    depends on efficiency gains, be it compute or memory.
+                </p>
+            </div>
+
+            <p>
+                My work builds on existing academic research. No wheels are re-invented. This page
+                presents the ideas — follow through the links to learn more about them.
+            </p>
+
+            <hr>
+
+            <h2>Scope and Prerequisites</h2>
+            My developments deal with:
+            <ul>
+                <li>Hardware cache design</li>
+                <li>Codebook Compression of LLM weights</li>
+                <li>Pruning</li>
+                <li>Parallel/Vector Processors (in general)</li>
+            </ul>
+
+            <a href="prereq.html">Click here for a primer</a> on the terms used in
+            this document.
+
+            <hr>
+
+            <h2>The Proposals</h2>
+            <h3>1. Echo Cache</h3>
+            <figure class="side">
+                <img src="dual_omega_storage.svg" title="Echo Cache Diagram">
+            </figure>
+            <p>
+                A banked cache, designed for high throughput, parallel codebook decompression of LLM weights.
+                It uses a pair of <a href="https://en.wikipedia.org/wiki/Multistage_interconnection_networks">Multistage
+                    Interconnection Networks (MINs)</a> to connect banks to virtual
+                read ports, making it more scalable than crossbars.
+                <br><br>
+                The bank $\leftrightarrow$ port interconnect operates in two phases:
+            <ol>
+                <li>Addresses travels from read-ports to banks</li>
+                <li>Data travels back to read-ports, tracing the same path in reverse</li>
+            </ol>
+
+            Although I present this in the context of codebook decompression of LLM weights, this is
+            a general design for a multiported, banked cache system where large number of read ports are required.
+            </p>
+
+            <p><a href="echo.html">Click here to read more 👈</a></p>
+
+
+            <div class="dot-break"></div>
+            <h3>2. Codebook Compression with Patched Outliers</h3>
+            <figure class="side">
+                <img src="https://cdn.prod.website-files.com/650c3b59079d92475f37b68f/67212caad533e36d533f2d7e_67212c06fd653049dc645e13_image_1.png"
+                    title="Codebook Compression">
+            </figure>
+            <p>
+                Building on existing LLM codebook quantization techniques, I show that model
+                quality loss can be minimized by storing a small fraction of outlier weights as <i>literals</i>
+                instead of codebook indices, i.e. store everything as indices into codebooks, but patch salient
+                weights individually.
+                <br><br>
+                Codebook decompression hardware (like Proposal 1) can directly integrate this optimization,
+                and make codebook compression of LLM weights a more feasible reality.
+            </p>
+            <p><a href="ccpo.html">Click here to read more 👈</a></p>
+
+
+            <div class="dot-break"></div>
+            <h3>3. Sparsity-Specialized rANS</h3>
+            <figure class="side">
+                <img src="https://miro.medium.com/v2/resize:fit:1400/1*isUWWaYQCWepkoyscOeyig.png" title="SSrANS">
+            </figure>
+            <p>
+                A parallel algorithm for compressing/decompressing sparse data. It is designed to optimally
+                exploit sparsity and use efficient memory access patterns.
+                <br><br>
+                I present this with the motivation of loading/storing pruned KV Caches, but this is an
+                algorithm for sparse data in general.
+            </p>
+            <p><a href="ssrans.html">Click here to read more 👈</a></p>
+
+            <hr>
+
+            <h2>About Me</h2>
+            <p>
+                A few sentences about your background. Where you work (if appropriate to share),
+                what you do in physical design, and why you're qualified to propose these ideas.
+                Keep it brief but credible.
+            </p>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>
+                <a href="mailto:your.email@example.com">your.email@example.com</a> ·<a
+                    href="https://linkedin.com/in/yourprofile">LinkedIn</a>
+                <a href="demo.html">Demo</a>
+            </p>
+        </div>
+    </footer>
+</body>
+
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Inference Optimization Proposals</title>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="common.js"></script>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <a href="index.html" class="back-link">← Back to Home</a>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <h1>Prerequisite Concepts</h1>
+
+            <h2>Vector Processors</h2>
+            <p>This refers to SIMD/SIMT style parallel processors that run <u>multiple threads</u>
+                (or lanes in some contexts) <u>in lockstep</u>. This definition covers:
+            <ul>
+                <li>CPU SIMD (AVX, NEON, etc)</li>
+                <li>GPUs (which are built on a SIMT model)</li>
+                <li>Vector units in other AI inference hardware (like TPUs)</li>
+            </ul>
+            </p>
+            <p>
+                A crucial property of any good vector processor is <u>coalescing reads</u>. If the
+                threads issue memory read-requests at <u>consecutive addresses</u>, (ex: $A, A + S, A + 2S$ etc)
+                then the processors can coalesce those reads into one large contigous read-request.
+                Thus, consecutive addresses are an <u>efficient memory access pattern</u>
+            </p>
+            <p>
+                On the flipside, if the threads issue read-requests at <u>random/irregular addresses</u>, then no
+                coalescion is possible, and this must be implemented as a <a
+                    href="https://en.wikipedia.org/wiki/Gather/scatter_(vector_addressing)">gather operation</a>.
+                This is an <u>inefficient memory access pattern</u>, and the speed at which the hardware
+                can serve such random reads is determined by the number of <u>read-ports</u> and <U>banking</U>
+                structure of the cache the threads are reading from. Not all reads can be served in parallel and
+                therefore
+                <u>serialization</u> takes place. This can also be called a kind of <u>time division multiplexing</u>.
+            </p>
+
+            <div class="dot-break"></div>
+            <h2>LLM Codebook Compression/Quantization</h2>
+            <p>
+                The idea is simple:
+            <ul>
+                <li>Group weights along rows of the weight matrix</li>
+                <li>Create a representative "codebook" containing vectors that approximate weight groups</li>
+                <li>Instead of storing weight groups, store indices into the codebook</li>
+            </ul>
+            </p>
+            <p>
+                If your codebook has 256 entries with group size of 8, you only need 8 bits per weight group,
+                which comes out to 1 bit-per-weight, instead of 16 or 32 bits for the actual value. The codebook
+                itself is small and shared across many weights.
+            </p>
+            <p>
+                Before <code>matmul</code>, the weight matrix has to be reconstructed from the indices. The general
+                scheme for this looks like:
+            <pre><code class="language-python">for idx in indices:
+    weight_group = codebook[idx]</code></pre>
+            </p>
+            <p>
+                Notice that there is an <u>indirect memory access</u> going on here. To get the final
+                <code>weight_group</code>, we have to dereference an index (<code>codebook[idx]</code>).
+            </p>
+            <p>
+                More details about codebook compression are out of scope, but it has been thoroughly
+                explored in academia, with papers such as <a href="https://arxiv.org/abs/2401.06118">AQLM</a>
+                and <a href="https://arxiv.org/abs/2402.04396">QUIP#</a> showing strong results even at 2
+                bits-per-weight.
+            </p>
+
+            <div class="dot-break"></div>
+            <h2>Pruning and Sparsity</h2>
+            <p>
+                Pruning refers to <u>removing unimportant entries</u> from a matrix, <u>replacing them with zeroes</u>.
+                The definition of "unimportant" depends on the context, and typically there is some kind of
+                <u>importance metric</u> we use to rank entries.
+            </p>
+            <p>
+                After pruning, the matrix has become more <u>sparse</u>, i.e. the ratio of zeroes has increased.
+            </p>
+            <p>
+                An important distinction to be made is between <u>structured</u> and <u>unstructured</u> sparsity, i.e.
+                whether or not the positions of zeroes follows some known structure (like <a
+                    href="https://developer.nvidia.com/blog/structured-sparsity-in-the-nvidia-ampere-architecture-and-applications-in-search-engines/">2:4</a>).
+            </p>
+
+            <div class="dot-break"></div>
+            <h2>KV Cache Pruning</h2>
+            <p>
+                Pruning applied to LLM KV Caches. I refer the reader to: <a
+                    href="https://arxiv.org/abs/2505.22913">MUSTAFAR</a>, <a
+                    href="https://arxiv.org/abs/2306.14048">H2O</a>
+                and <a href="https://arxiv.org/abs/2508.15212">SparK</a>. TODO: Why important?
+            </p>
+
+            <div class="dot-break"></div>
+            <h2>Interconnection Networks</h2>
+            <p>
+                When we:
+            <ul>
+                <li>Have some number of sources</li>
+                <li>Have some number of destinations</li>
+                <li>Have data that needs to be routed from sources to destinations</li>
+                <li>Need to use a switching circuit to do the routing</li>
+            </ul>
+
+            We can use an <u>Interconnection Network</u> to connect sources to destinations.
+            </p>
+            <p>
+                The most basic form of such a network is the <u>crossbar</u>, which provides a dedicated connection
+                between each source and destination.
+            </p>
+            <p>
+                However, a crossbar's complexity (the number of switches and wires) grows quadratically with the number
+                of sources and destinations (i.e. $O(N^2)$ complexity). Therefore, <u>Multistage Interconnection
+                    Networks (MINs)</u> were introduced, which can route sources to destinations (under some conditions)
+                and have a more feasible $O(log \ N)$ complexity.
+            </p>
+            <p>
+                A MIN consists of an array of switches, and some <u>network topology</u> connecting them. Typically
+                small switches, like $2 \times 2$ switches, are used. Some common network topologies include:
+            <ul>
+                <li>Omega Networks</li>
+                <li>Beneš Networks</li>
+                <li>Clos Networks (popular in datacenter networks)</li>
+            </ul>
+            </p>
+
+            <div class="callout aside">
+                <strong>A Clarification</strong>
+                <p>
+                    Crossbars are often considered distinct from "interconnection networks" (which often only refers to
+                    MINs). However, for the purpose of this article, I consider both crossbars and MINs as types of
+                    interconnection networks.
+                </p>
+            </div>
+            <div class="callout aside">
+                <strong>Resources</strong>
+                <p>
+                    MINs are a complex field and an in-depth explanation is out of scope. Here are some external sources
+                    that are helpful:
+                <ul>
+                    <li><a
+                            href="https://www.philadelphia.edu.jo/academics/kaubaidy/uploads/ACA-Lect16.pdf">https://www.philadelphia.edu.jo/academics/kaubaidy/uploads/ACA-Lect16.pdf</a>
+                    </li>
+                    <li><a
+                            href="https://pnewman.com/papers/thesis/chapter4.pdf">https://pnewman.com/papers/thesis/chapter4.pdf</a>
+                    </li>
+                </ul>
+                </p>
+            </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p><a href="mailto:your.email@example.com">your.email@example.com</a> · <a
+                    href="https://linkedin.com/in/yourprofile">LinkedIn</a></p>
+        </div>
+    </footer>
+</body>
+
+</html>

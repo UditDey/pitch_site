@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1077 280" width="1077" height="280">
+  <style>
+    .outer-box { stroke: #000; stroke-width: 1.5; }
+    .cell { stroke: #000; stroke-width: 1; }
+    .cell-normal { fill: rgba(255, 255, 255, 0.9); }
+    .cell-satisfied { fill: rgba(255, 255, 255, 0.45); }
+    .cell-unsatisfied { fill: rgba(255, 255, 255, 0.95); }
+    .text-normal { font-family: monospace; font-size: 14px; fill: #000; }
+    .text-satisfied { font-family: monospace; font-size: 14px; fill: rgba(0, 0, 0, 0.35); }
+    .text-unsatisfied { font-family: monospace; font-size: 14px; fill: #000; font-weight: bold; }
+    .arrow-line { fill: none; stroke: #333; stroke-width: 1.5; }
+    .arrowhead { fill: #333; }
+    .connect-arrow { fill: none; stroke: #333; stroke-width: 1.5; }
+    .label { font-family: system-ui, -apple-system, sans-serif; font-size: 16px; fill: #000; font-weight: bold; }
+    .label-normal { font-family: system-ui, -apple-system, sans-serif; font-size: 16px; fill: #000; }
+  </style>
+  <text class="label" x="288.0" y="65" text-anchor="middle">Packet Valid Bits</text>
+  <text class="label" x="789.0" y="65" text-anchor="middle">Addresses</text>
+  <rect class="outer-box" x="50" y="80" width="476" height="60" rx="8" fill="rgba(180, 210, 255, 0.5)"/>
+  <rect class="outer-box" x="551" y="80" width="476" height="60" rx="8" fill="rgba(255, 200, 180, 0.5)"/>
+  <path class="connect-arrow" d="M511,77 Q538.5,55 566,77"/>
+  <polygon class="arrowhead" points="566,77 561,69 571,69"/>
+  <g id="bits-box">
+    <rect class="cell cell-normal" x="60" y="90" width="50" height="40" rx="4"/>
+    <text class="text-normal" x="85.0" y="115.0" text-anchor="middle">1</text>
+    <rect class="cell cell-normal" x="118" y="90" width="50" height="40" rx="4"/>
+    <text class="text-normal" x="143.0" y="115.0" text-anchor="middle">0</text>
+    <rect class="cell cell-normal" x="176" y="90" width="50" height="40" rx="4"/>
+    <text class="text-normal" x="201.0" y="115.0" text-anchor="middle">1</text>
+    <rect class="cell cell-normal" x="234" y="90" width="50" height="40" rx="4"/>
+    <text class="text-normal" x="259.0" y="115.0" text-anchor="middle">1</text>
+    <rect class="cell cell-normal" x="292" y="90" width="50" height="40" rx="4"/>
+    <text class="text-normal" x="317.0" y="115.0" text-anchor="middle">0</text>
+    <rect class="cell cell-normal" x="350" y="90" width="50" height="40" rx="4"/>
+    <text class="text-normal" x="375.0" y="115.0" text-anchor="middle">1</text>
+    <rect class="cell cell-normal" x="408" y="90" width="50" height="40" rx="4"/>
+    <text class="text-normal" x="433.0" y="115.0" text-anchor="middle">0</text>
+    <rect class="cell cell-normal" x="466" y="90" width="50" height="40" rx="4"/>
+    <text class="text-normal" x="491.0" y="115.0" text-anchor="middle">1</text>
+  </g>
+  <g id="address-box">
+    <rect class="cell cell-satisfied" x="561" y="90" width="50" height="40" rx="4"/>
+    <text class="text-satisfied" x="586.0" y="115.0" text-anchor="middle">0x3F</text>
+    <rect class="cell cell-unsatisfied" x="619" y="90" width="50" height="40" rx="4"/>
+    <text class="text-unsatisfied" x="644.0" y="115.0" text-anchor="middle">0x8A</text>
+    <rect class="cell cell-satisfied" x="677" y="90" width="50" height="40" rx="4"/>
+    <text class="text-satisfied" x="702.0" y="115.0" text-anchor="middle">0x12</text>
+    <rect class="cell cell-satisfied" x="735" y="90" width="50" height="40" rx="4"/>
+    <text class="text-satisfied" x="760.0" y="115.0" text-anchor="middle">0xC7</text>
+    <rect class="cell cell-unsatisfied" x="793" y="90" width="50" height="40" rx="4"/>
+    <text class="text-unsatisfied" x="818.0" y="115.0" text-anchor="middle">0x55</text>
+    <rect class="cell cell-satisfied" x="851" y="90" width="50" height="40" rx="4"/>
+    <text class="text-satisfied" x="876.0" y="115.0" text-anchor="middle">0x91</text>
+    <rect class="cell cell-unsatisfied" x="909" y="90" width="50" height="40" rx="4"/>
+    <text class="text-unsatisfied" x="934.0" y="115.0" text-anchor="middle">0x2D</text>
+    <rect class="cell cell-satisfied" x="967" y="90" width="50" height="40" rx="4"/>
+    <text class="text-satisfied" x="992.0" y="115.0" text-anchor="middle">0xE4</text>
+  </g>
+  <g id="input-arrows">
+    <path class="arrow-line" d="M85.0,192 L85.0,160"/>
+    <polygon class="arrowhead" points="85.0,152 80.0,160 90.0,160"/>
+    <path class="arrow-line" d="M143.0,192 L143.0,160"/>
+    <polygon class="arrowhead" points="143.0,152 138.0,160 148.0,160"/>
+    <path class="arrow-line" d="M201.0,192 L201.0,160"/>
+    <polygon class="arrowhead" points="201.0,152 196.0,160 206.0,160"/>
+    <path class="arrow-line" d="M259.0,192 L259.0,160"/>
+    <polygon class="arrowhead" points="259.0,152 254.0,160 264.0,160"/>
+    <path class="arrow-line" d="M317.0,192 L317.0,160"/>
+    <polygon class="arrowhead" points="317.0,152 312.0,160 322.0,160"/>
+    <path class="arrow-line" d="M375.0,192 L375.0,160"/>
+    <polygon class="arrowhead" points="375.0,152 370.0,160 380.0,160"/>
+    <path class="arrow-line" d="M433.0,192 L433.0,160"/>
+    <polygon class="arrowhead" points="433.0,152 428.0,160 438.0,160"/>
+    <path class="arrow-line" d="M491.0,192 L491.0,160"/>
+    <polygon class="arrowhead" points="491.0,152 486.0,160 496.0,160"/>
+  </g>
+  <g id="retry-arrows">
+    <path class="arrow-line" d="M644.0,152 L644.0,184"/>
+    <polygon class="arrowhead" points="644.0,192 639.0,184 649.0,184"/>
+    <path class="arrow-line" d="M818.0,152 L818.0,184"/>
+    <polygon class="arrowhead" points="818.0,192 813.0,184 823.0,184"/>
+    <path class="arrow-line" d="M934.0,152 L934.0,184"/>
+    <polygon class="arrowhead" points="934.0,192 929.0,184 939.0,184"/>
+  </g>
+  <text class="label-normal" x="288.0" y="222" text-anchor="middle">From Transfer Network</text>
+  <text class="label-normal" x="789.0" y="222" text-anchor="middle">Re-issued into Control Network</text>
+</svg>

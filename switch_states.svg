@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 560" width="520" height="560">
+  <style>
+    .switch-box { fill: rgba(240, 240, 245, 0.8); stroke: #000; stroke-width: 1.5; }
+    .terminal { fill: none; stroke: #555; stroke-width: 1.5; }
+    .routing { fill: none; stroke-width: 3.5; stroke-linecap: round; }
+    .routing-blue { stroke: #2563eb; }
+    .routing-orange { stroke: #ea580c; }
+    .node { fill: #333; }
+    .caption { font-family: system-ui, -apple-system, sans-serif; font-size: 18px; fill: #000; font-weight: bold; }
+  </style>
+  <g id="switch-pass-through">
+    <rect class="switch-box" x="80" y="110" width="100" height="80" rx="6"/>
+    <path class="terminal" d="M110.0,80 L110.0,110"/>
+    <path class="terminal" d="M150.0,80 L150.0,110"/>
+    <path class="terminal" d="M110.0,190 L110.0,220"/>
+    <path class="terminal" d="M150.0,190 L150.0,220"/>
+    <circle class="node" cx="110.0" cy="80" r="5"/>
+    <circle class="node" cx="150.0" cy="80" r="5"/>
+    <circle class="node" cx="110.0" cy="220" r="5"/>
+    <circle class="node" cx="150.0" cy="220" r="5"/>
+    <path class="routing routing-blue" d="M110.0,120 C110.0,150.0 110.0,150.0 110.0,180"/>
+    <path class="routing routing-orange" d="M150.0,120 C150.0,150.0 150.0,150.0 150.0,180"/>
+    <text class="caption" x="130.0" y="270" text-anchor="middle">Pass-through</text>
+  </g>
+  <g id="switch-swap">
+    <rect class="switch-box" x="300" y="110" width="100" height="80" rx="6"/>
+    <path class="terminal" d="M330.0,80 L330.0,110"/>
+    <path class="terminal" d="M370.0,80 L370.0,110"/>
+    <path class="terminal" d="M330.0,190 L330.0,220"/>
+    <path class="terminal" d="M370.0,190 L370.0,220"/>
+    <circle class="node" cx="330.0" cy="80" r="5"/>
+    <circle class="node" cx="370.0" cy="80" r="5"/>
+    <circle class="node" cx="330.0" cy="220" r="5"/>
+    <circle class="node" cx="370.0" cy="220" r="5"/>
+    <path class="routing routing-blue" d="M330.0,120 C330.0,160.0 370.0,140.0 370.0,180"/>
+    <path class="routing routing-orange" d="M370.0,120 C370.0,160.0 330.0,140.0 330.0,180"/>
+    <text class="caption" x="350.0" y="270" text-anchor="middle">Swap</text>
+  </g>
+  <g id="switch-left-merge">
+    <rect class="switch-box" x="80" y="350" width="100" height="80" rx="6"/>
+    <path class="terminal" d="M110.0,320 L110.0,350"/>
+    <path class="terminal" d="M150.0,320 L150.0,350"/>
+    <path class="terminal" d="M110.0,430 L110.0,460"/>
+    <path class="terminal" d="M150.0,430 L150.0,460"/>
+    <circle class="node" cx="110.0" cy="320" r="5"/>
+    <circle class="node" cx="150.0" cy="320" r="5"/>
+    <circle class="node" cx="110.0" cy="460" r="5"/>
+    <circle class="node" cx="150.0" cy="460" r="5"/>
+    <path class="routing routing-blue" d="M110.0,360 C110.0,390.0 110.0,390.0 110.0,420"/>
+    <path class="routing routing-orange" d="M150.0,360 C150.0,405.0 110.0,375.0 110.0,420"/>
+    <text class="caption" x="130.0" y="510" text-anchor="middle">Left-merge</text>
+  </g>
+  <g id="switch-right-merge">
+    <rect class="switch-box" x="300" y="350" width="100" height="80" rx="6"/>
+    <path class="terminal" d="M330.0,320 L330.0,350"/>
+    <path class="terminal" d="M370.0,320 L370.0,350"/>
+    <path class="terminal" d="M330.0,430 L330.0,460"/>
+    <path class="terminal" d="M370.0,430 L370.0,460"/>
+    <circle class="node" cx="330.0" cy="320" r="5"/>
+    <circle class="node" cx="370.0" cy="320" r="5"/>
+    <circle class="node" cx="330.0" cy="460" r="5"/>
+    <circle class="node" cx="370.0" cy="460" r="5"/>
+    <path class="routing routing-blue" d="M330.0,360 C330.0,405.0 370.0,375.0 370.0,420"/>
+    <path class="routing routing-orange" d="M370.0,360 C370.0,390.0 370.0,390.0 370.0,420"/>
+    <text class="caption" x="350.0" y="510" text-anchor="middle">Right-merge</text>
+  </g>
+</svg>

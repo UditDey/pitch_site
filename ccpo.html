@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Inference Optimization Proposals</title>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="common.js"></script>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <a href="index.html" class="back-link">← Back to Home</a>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <h1>LLM Codebook Compression with Patched Outliers</h1>
+            <p class="subtitle">Improving model quality under codebook compression</p>
+
+            <h2>The Problem</h2>
+            <p>
+                It is well known that not all weights are equally important. LLMs contain a small number of
+                <u>salient</u> or <u>outlier</u> weights that have an outsized impact on the model's quality.
+            </p>
+            <p>
+                Quantization schemes are usually aware of this. Some schemes like <a
+                    href="https://arxiv.org/abs/2306.03078">SpQR</a> use mixed-precision weights depending on saliency:
+                most weights are stored in 3-4 bits, salient weights are stored in 16 bits.
+            </p>
+            <p>
+                But codebook compression schemes have a limitation here: their ability to closely approximate outliers
+                is limited because the number of codes are small. An outlier weight must be given its own independent
+                code in the codebook to be approximated well. But since the codes are few, theres a global averaging
+                effect, and outliers are not represented well.
+            </p>
+
+            <h2>The Proposal</h2>
+            <p>
+                Stick to regular codebook methods like <a href="https://arxiv.org/abs/2401.06118">AQLM</a>, except
+                patch-in
+                outlier weights as scalars. So indices-into-codebooks forms the bulk of the weights, and outliers are
+                patched in by scalars, storing the <i>original</i> weight value from the base, uncompressed model. TODO:
+                Diagram
+            </p>
+
+            <p>
+                This complicates the storage format: are outlier patches stored inline with indices? or do they come
+                from a seperate sparse list? I treat these as implementation details, since my goal here is to just show
+                that this idea is useful. If dedicated codebook hardware is used (as I suggest in <a
+                    href="echo.html">the previous article</a>), patching-in weights can be made more efficient.
+            </p>
+
+            <div class="callout aside">
+                <strong>SpQR</strong>
+                <p>
+                    This strongly resembles the aforementioned <a href="https://arxiv.org/abs/2306.03078">SpQR</a>
+                    paper, except applied to codebook quantization instead of regular, scalar quantization.
+                </p>
+                <p>
+                    In SpQR, the authors use 3-4 bits of precision for the bulk of weights, and keep a seperate sparse,
+                    outlier matrix in 16 bits.
+                </p>
+            </div>
+
+            <h2>Experimental Setup</h2>
+            <p>
+                We'll take <a
+                    href="https://huggingface.co/ISTA-DASLab/Meta-Llama-3-8B-Instruct-AQLM-2Bit-1x16">ISTA-DASLab/Meta-Llama-3-8B-Instruct-AQLM-2Bit-1x16</a>
+                as our test model. This is a AQLM quantized version of Llama-3-8B.
+            </p>
+            <p>
+                The gameplan is:
+            <ol>
+                <li>Benchmark the base model</li>
+                <li>Benchmark the AQLM model</li>
+                <li>Decompress the AQLM model, patch-in some percentage of salient weights, and benchmark</li>
+            </ol>
+            </p>
+            <p>
+                This should give us an idea of how much AQLM affects model quality, and how much of it is restored by
+                outlier patching.
+            </p>
+            <p>
+                First, we should define the <u>saliency metric</u> we'll use to measure how important a weight is. While
+                the "true" measure depends on the Hessian matrix, we can use simpler, approximate metrics too.
+            </p>
+            <p>
+                Lets use this metric, inspired by <a href="https://arxiv.org/abs/2306.11695">Wanda</a>:
+                $$
+                S_{ij} = |W_{ij}| \cdot |W_{ij} - \hat{W}_{ij}| \cdot \|X_j\|_2
+                $$
+                Where:
+            <ul>
+                <li>$S_{ij}$ is the saliency of the weight at position $i, j$</li>
+                <li>$W_{ij}$ is the original, base model weight</li>
+                <li>$\hat{W}_{ij}$ is the decompressed weight</li>
+                <li>$X_j$ is the $L_2$ norm of the input activations at feature $j$</li>
+            </ul>
+            </p>
+            <p>
+                Intuitively, this metric measures:
+            <ul>
+                <li>How important is this weight? ($W_{ij}$ and $X_j$)</li>
+                <li>How much does the codebook reconstruction deviate from the base value? ($|W_{ij} - \hat{W}_{ij}|$)
+                </li>
+            </ul>
+            </p>
+            <p>
+                To collect activation norms, we will first run the model on the <a
+                    href="https://huggingface.co/datasets/allenai/c4">c4</a> dataset (also used by Wanda's official
+                code), and for benchmarking, we will use <code>lm_eval -tasks wikitext</code>.
+            </p>
+            <p>
+                All the code for these tests <a href="ccpo_code.html">can be found here</a>.
+            </p>
+
+            <h2>Results</h2>
+            <p></p>
+
+            <h2>Conclusion</h2>
+            <p></p>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p><a href="mailto:your.email@example.com">your.email@example.com</a> · <a
+                    href="https://linkedin.com/in/yourprofile">LinkedIn</a></p>
+        </div>
+    </footer>
+</body>
+
+</html>

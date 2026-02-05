@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Inference Optimization Proposals</title>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="common.js"></script>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <a href="index.html" class="back-link">← Back to Home</a>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <h1>Echo Cache for Codebook Decompression of LLM Weights</h1>
+            <p class="subtitle">A multiported, scalable hardware cache for wide gather operations</p>
+
+            <h2>The Problem</h2>
+            <p>
+                As discussed in <a href="prereq.html">Prerequisite Concepts</a>, inference on codebook compressed
+                LLMs requires reconstructing (i.e. decompressing) the weight matrices like so:
+            <pre><code class="language-python">for idx in indices:
+    weight_group = codebook[idx]</code></pre>
+
+            And the <code>codebook[idx]</code> operation makes this an indirect memory access pattern.
+            </p>
+
+            <p>
+                This makes things particularly worse for vector processors. If we try to parallelize
+                this decompression on a vector processor, each thread could end up with a different <code>idx</code>.
+                This is a <u>gather</u> operation and read-coalescion is impossible.
+                <br> TODO: Image of gather op
+            </p>
+            <p>
+                This means that despite significant reductions in weight size, codebook compression methods can be
+                slower than their uncompressed counterparts when implemented with regular CUDA kernels. Since the rest
+                of the <code>matmul</code> procedure is the same, it points to the <u>gather-op bottlenecking the entire
+                    system</u>.
+            </p>
+            <p>
+                For the rest of this article I will assume that the codebook itself is small enough to fit in an on-chip
+                cache. Practically, this assumption holds true. A large codebook will have more bits-per-index too,
+                which defeats the point of compression. This <u>codebook cache</u> is the main focus of this article.
+            </p>
+
+            <h2>Multiporting and Cache Banking</h2>
+            <p>
+                The speed at which gather-ops can be served clearly depends on the number of read-ports of the cache
+                (i.e. a multiported cache). Here, we need to clarify two types of multiporting:
+            <ul>
+                <li>True Multiporting</li>
+                <li>Virtual Multiporting</li>
+            </ul>
+            </p>
+            <p>
+                For true-multiporting, think of multiported SRAMs. There are multiple usable read-ports, no caveats.
+                This would be ideal, but is also the hardest. If we have hundreds of parallel threads, ideally we need
+                hundreds of true-read-ports. <u>A hundred read-port SRAM is not feasible.</u>
+            </p>
+            <p>
+                By virtual-multiporting (or VMP), I mean any system that builds a large number from read-ports using
+                caches with a smaller number of read-ports.
+            </p>
+            <p>
+                <u>Banking</u> (or slicing) is the most common VMP solution. But it introduces two problems:
+            <ol>
+                <li>How are the banks' true-ports connected to the virtual-ports? What is the interconnect complexity
+                    when the number of banks and virtual-ports are very high?</li>
+                <li>If many ports want to access the same bank, the requests must be serialized, significantly reducing
+                    throughput.</li>
+            </ol>
+            </p>
+            <p>
+                The design I present in this article builds on standard cache banking, but introduces a mitigation for
+                these two problems.
+            </p>
+
+            <h2>Interconnection Network</h2>
+            <p>
+                Following what was introduced in <a href="prereq.html">Prerequisite Concepts</a>, we could consider a
+                crossbar to solve problem 1. But the obstacle is the complexity of the crossbar when we have potentially
+                hundreds of virtual read-ports. A crossbar could be completely infeasible due to <u>long
+                    wires</u> and <u>extreme routing congestion</u>.
+            </p>
+            <p>
+                We should instead consider MINs. This brings its own set of complexities, mainly that <u>figuring out
+                    the switch settings</u> to achieve a desired routing in a MIN is a <u>non-trivial task</u>. Some
+                MINs (like Beneš Networks) are very powerful, but require complex algorithms to calculate switch
+                settings, making them impractical for our purpose.
+            </p>
+            <p>
+                Here, I identify that a certain type of MINs, known as <u>self-routing MINs</u>, can be used to create
+                an interconnect. As far as I'm aware, using self-routing MINs in this manner is entirely novel.
+            </p>
+
+            <h2>The Echo Cache</h2>
+            <p>
+                This is my solution:
+            <ul>
+                <li>Use a self-routing MIN as the interconnect between cache-banks and virtual read-ports</li>
+                <li>In phase 1, make addresses travel across the interconnect, from virtual ports to banks</li>
+                <li>In phase 2, make data travel from banks to virtual ports, tracing the same route the address packets
+                    took in phase 1, except in reverse</li>
+            </ul>
+            </p>
+            <p>
+                Hence the name, <b>Echo Cache</b>. Addresses travel to banks, data returns back like an echo. And since
+                a MIN is used instead of a crossbar, it can be feasibly scaled to hundreds of virtual read-ports with
+                feasible wire lengths and routing congestion.
+            </p>
+            <p>
+                In addition, the switches in the MIN have to be given a "packet merging" capability. This allows the
+                banks to do <u>fan-out data transport</u>, i.e. <u>broadcast</u>. This significantly reduces the amount
+                of serialization that takes place, since if two read-ports want the same address, the data can be
+                replicated in the MIN, and broadcast to all requesting ports. A significant number of read-ports can
+                recieve their data in parallel.
+            </p>
+            <p>
+                Hence, both problems mentioned in the previous section have been addressed.
+            </p>
+
+            <h2>Detailed Explanation</h2>
+            <figure><img src="dual_omega_storage.svg" title="Echo Cache Diagram"></figure>
+            <p>
+                We use a pair of MINs: the <b>control network</b> and the <b>transfer network</b>. Both are
+                self-routing, so switches make their own local decisions. First, address packets travel from read-ports,
+                throughout the control network. Then, switch states are copied to the transfer network, and data flows
+                from banks back to read-ports following the same paths, except in reverse.
+            </p>
+            <p>
+                The control network essentially only performs a "dry-run", that the transfer network replays in reverse
+                to transport data packets. This retains the advantage of self-routing MINs: no complex algorithms needs
+                to be used to compute switch states. The control network <i>is</i> the algorithm.
+            </p>
+            <p>
+                Most self-routing MINs have chances of packet collisions or <u>blocking</u>, i.e. when two packets at a
+                switch input want to both go to the same output wire. In this case, one packet must be <u>dropped</u>.
+                However,if both packets are ultimately going to the same bank, then instead of dropping, both packets
+                can be <u>merged</u>.
+            </p>
+            <p>
+                On the way down, packets merge and form a fan-in routing. When reversed, packets <u>replicate</u> and
+                form a fan-out routing. This is the core mechanism behind the fan-out/broadcast capability of the Echo
+                Cache.
+            </p>
+            <figure><img src="fanin_fanout.svg" title="Echo Cache Diagram"></figure>
+
+            <p>
+                This presents an issue: if some packets are dropped in the control phase, those read ports will never
+                recieve their data. To solve this, we include <u>retry logic</u>, that sees which read ports finally
+                recieve valid data, and selectively re-issues the rest back into the control network.
+            </p>
+            <p>
+                This is a form of serialization (hence why I mentioned that serialization is reduced, and not
+                eliminated). However, the probability of blocking depends on the MIN topology chosen. If we use designs
+                like <u>dilated networks</u> or <u>asymptotically nonblocking networks</u>, probability of blocking is
+                reduced, and we have to serialize rarely, maintaining high system throughput.
+            </p>
+
+            <div class="callout aside">
+                <strong>Are 2 Networks Necessary?</strong>
+                <p>
+                    No. The control and transfer phases can technically be done on a single physical network, provided
+                    that switches are truly bidirectional, which would require <code>inout</code> wires and
+                    high-z/tri-state logic.
+                </p>
+                <p>
+                    In fact, more than 2 networks can also be used. We can use multiple transfer networks to divide the
+                    workload of carrying wide-bitwidth data. This can potentially reduce wire congestion.
+                </p>
+            </div>
+
+            <div class="callout aside">
+                <strong>What About the Write-Ports?</strong>
+                <p>
+                    This is designed for gather, not scatter. So we assume that the number of write ports needed is
+                    small, and a regular bus/crossbar connection for the write side of things is feasible. Its only for
+                    the hundreds of read-ports that we ned MINs.
+                </p>
+                <p>
+                    In LLM codebook decompression, this tracks. We dereference indices <i>far</i> more frequently than
+                    we load codebooks.
+                </p>
+            </div>
+
+            <figure><img src="switch_states.svg" title="Echo Cache Diagram"></figure>
+            <figure><img src="switch_conflict.svg" title="Echo Cache Diagram"></figure>
+            <figure><img src="switch_bidir.svg" title="Echo Cache Diagram"></figure>
+
+            <h2>Verilog Sample</h2>
+            <p>
+                I developed a proof-of-concept RTL implementation of the Echo Cache which can be found <a
+                    href="rtl.html">here</a>. It utilizes $2 \times 2$ switches with the omega network topology, the
+                simplest self-routing MIN.
+            </p>
+            <p>
+                Here, I will present the design of just the switch modules, which should be enough to get a grasp of how
+                the whole system operates. <code>ctrl_switch</code> routes its input packets, and registers its
+                decision. <code>xfer_switch</code> reads the saved the decision, and performs the same operation in
+                reverse.
+            </p>
+
+            <pre><code class="language-verilog">module ctrl_switch #(
+    parameter ADDR_WIDTH = 3,
+    parameter STAGE_BIT  = 0
+) (
+    input  wire clk,
+    input  wire rst,
+    input  wire [ADDR_WIDTH:0] in0,
+    input  wire [ADDR_WIDTH:0] in1,
+    output reg  [ADDR_WIDTH:0] out0,
+    output reg  [ADDR_WIDTH:0] out1,
+    output reg                 did_swap,
+    output reg                 did_merge
+);
+    // Control packet format: {valid, addr}
+    // Switch states are defined by (did_swap, did_merge):
+    // 1) (0, 0): Passthru
+    // 2) (1, 0): Swap
+    // 3) (0, 1): Merge left
+    // 4) (1, 1): Merge Right
+    localparam PKT_WIDTH = ADDR_WIDTH + 1;
+    localparam [PKT_WIDTH-1:0] ZERO_PKT = {PKT_WIDTH{1'b0}};
+
+    wire in0_valid       = in0[PKT_WIDTH-1];
+    wire in0_wants_right = in0[STAGE_BIT];
+    wire in1_valid       = in1[PKT_WIDTH-1];
+    wire in1_wants_right = in1[STAGE_BIT];
+
+    // Switch decision
+    wire do_swap  = in0_valid ? in0_wants_right :
+                    in1_valid ? ~in1_wants_right :
+                    1'b0;
+
+    wire do_merge = in0_valid && in1_valid && (in0[ADDR_WIDTH-1:0] == in1[ADDR_WIDTH-1:0]);
+
+    // Output crossbar
+    wire [ADDR_WIDTH:0] xbar0 = do_swap ? in1 : in0;
+    wire [ADDR_WIDTH:0] xbar1 = do_swap ? in0 : in1;
+
+    // Kill misrouted packet
+    wire kill0 = xbar0[STAGE_BIT] == 1'b1;
+    wire kill1 = xbar1[STAGE_BIT] == 1'b0;
+
+    // Final ouput packets
+    wire [ADDR_WIDTH:0] final_out0 = kill0 ? ZERO_PKT : xbar0;
+    wire [ADDR_WIDTH:0] final_out1 = kill1 ? ZERO_PKT : xbar1;
+
+    always @(posedge clk) begin
+        if (rst) begin
+            out0      <= ZERO_PKT;
+            out1      <= ZERO_PKT;
+            did_swap  <= 1'b0;
+            did_merge <= 1'b0;
+        end else begin
+            out0      <= final_out0;
+            out1      <= final_out1;
+            did_swap  <= do_swap;
+            did_merge <= do_merge;
+        end
+    end
+endmodule
+
+
+module xfer_switch #(
+    parameter DATA_WIDTH = 8,
+    parameter STAGE_BIT  = 0
+) (
+    input  wire clk,
+    input  wire rst,
+    input  wire [DATA_WIDTH:0] in0,
+    input  wire [DATA_WIDTH:0] in1,
+    input  wire                did_swap,
+    input  wire                did_merge,
+    output reg  [DATA_WIDTH:0] out0,
+    output reg  [DATA_WIDTH:0] out1
+);
+    // Transfer packet format: {valid, data}
+    // ADDITIONAL CONSTRAINT: when valid == 0, then data == 0
+    localparam PKT_WIDTH = DATA_WIDTH + 1;
+    localparam [PKT_WIDTH-1:0] ZERO_PKT = {PKT_WIDTH{1'b0}};
+
+    // Reverse the crossbar using stored swap decision
+    wire [DATA_WIDTH:0] xbar0 = did_swap ? in1 : in0;
+    wire [DATA_WIDTH:0] xbar1 = did_swap ? in0 : in1;
+    
+    // Merge case: Choose the valid packet to multicast
+    // OR'ing works because if merge was done in control phase, then one input here must
+    // necessarily have valid == 0 and addr == 0
+    wire [DATA_WIDTH:0] merge_chosen = in0 | in1;
+    
+    wire [DATA_WIDTH:0] final_out0 = did_merge ? merge_chosen : xbar0;
+    wire [DATA_WIDTH:0] final_out1 = did_merge ? merge_chosen : xbar1;
+
+    always @(posedge clk) begin
+        if (rst) begin
+            out0 <= ZERO_PKT;
+            out1 <= ZERO_PKT;
+        end else begin
+            out0 <= final_out0;
+            out1 <= final_out1;
+        end
+    end
+endmodule</code></pre>
+
+            <h2>Conclusion</h2>
+            <p>
+                In this article I presented the <b>Echo Cache</b>: a banked, virtual-multiported cache that uses a novel
+                2 phase MIN to route addresses to banks, and then data back to read-ports.
+            </p>
+            <p>
+                This design allows for a large number of banks and read-ports, without the scalability issues of
+                crossbars.
+            </p>
+            <p>
+                The motivations for this are the wide gather operations that we encounter in LLM codebook compression.
+                Codebook compression is a powerful idea that has been unfortunately bottlenecked by existing cache
+                designs, and I hope that next-gen AI inference hardware can solve this problem at a hardware level using
+                approaches like the Echo Cache.
+            </p>
+            <p>
+                My <a href="ccpo.html">next article</a> further builds on LLM codebook compression, showing that
+                reduction in model quality incurred can be mitigated by "patching"-in salient, outlier weights.
+            </p>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p><a href="mailto:your.email@example.com">your.email@example.com</a> · <a
+                    href="https://linkedin.com/in/yourprofile">LinkedIn</a></p>
+        </div>
+    </footer>
+</body>
+
+</html>

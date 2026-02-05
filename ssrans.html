@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Inference Optimization Proposals</title>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="common.js"></script>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <a href="index.html" class="back-link">← Back to Home</a>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <h1>Sparsity-Specialized rANS Compression</h1>
+            <p class="subtitle">A fast, vector algorithm for compressing sparse data</p>
+
+            <h2>The Problem</h2>
+            <p>
+                LLM inference may involve <u>sparse data</u>, which is naturally compressible. Optimal compression is
+                particularly relevant to <u>KV cache pruning</u>, which can significantly reduce the size of the KV
+                cache, with minimal effect on model quality, allowing for speed, efficiency and <u>longer context
+                    windows</u>.
+            </p>
+            <p>
+                However, existing compression formats for sparse data are <u>not efficient on vector processors</u>. As
+                explained in <a href="prereq.html">Prerequisite Concepts</a>, coalesable memory reads are essential for
+                fast performance, but existing formats for sparse data, such as bitmaps, have performance limitations on
+                wide vector processors.
+            </p>
+            <p>
+                Consider bitmaps: the idea is to store non-zeroes in a dense array, and use a bitmap to store the
+                location of zeros.
+            </p>
+            <p>
+                If we try to vectorize this, each thread will have to:
+            <ol>
+                <li>Check if its position is zero or not</li>
+                <li>If not zero, use a <code>popcnt</code> or something similar to find its data in the dense array
+                </li>
+            </ol>
+
+            Step 1 is efficient (the bitmap read can be coalesced), step 2 is not.
+            </p>
+            <p>
+                Another criticism of bitmaps, is that they can be <u>information-theoretically suboptimal</u>. At
+                minimum, bitmap based sparse formats use 1 bit per symbol, but the true bits-per-symbol, determined by
+                the <a href="https://en.wikipedia.org/wiki/Entropy_(information_theory)">Shannon entropy</a>, can be
+                $\lt 1$ bits. At high sparsity, bitmaps use more bits than necessary.
+            </p>
+
+            <h2>The Proposal</h2>
+            <p>
+                I suggest that an optimal compression algorithm for sparse data should:
+            <ul>
+                <li>Be close to information-theoretically optimal</li>
+                <li>Should not use complex global instructions like <code>popcnt</code></li>
+                <li>Should only have regular, coalescable memory reads</li>
+                <li>Should not have long, divergent branching</li>
+            </ul>
+            </p>
+            <p>
+                From these requirements, lets consider <a
+                    href="https://en.wikipedia.org/wiki/Asymmetric_numeral_systems">Asymmetric Numeral Systems
+                    (ANS)</a>. ANS is an <a href="https://en.wikipedia.org/wiki/Entropy_coding">entropy coding</a>
+                algorithm, forming the backbone of Facebook's widely used compression tool <a
+                    href="https://en.wikipedia.org/wiki/Zstd">zstd</a>.
+            </p>
+
+            <div class="callout aside">
+                <strong>Resources</strong>
+                <p>
+                    A full explanation of ANS is out of scope of this article. I refer the reader to:
+                <ol>
+                    <li><a
+                            href="https://kedartatwawadi.github.io/post--ANS/">https://kedartatwawadi.github.io/post--ANS/</a>
+                    </li>
+                    <li><a
+                            href="https://fastcompression.blogspot.com/2013/12/finite-state-entropy-new-breed-of.html">https://fastcompression.blogspot.com/2013/12/finite-state-entropy-new-breed-of.html</a>
+                    </li>
+                    <li>TODO: more</li>
+                </ol>
+                </p>
+                <p>
+                    Its worth mentioning that the second link is Yann Collet's blog, the creator of <code>zstd</code>.
+                </p>
+            </div>
+
+            <p>
+                More specifically, lets consider the <u>Range ANS (rANS)</u> variant of the algorithm (the other
+                being Table ANS (tANS)).
+            </p>
+            <p>
+                rANS is a simple, pure arithmetic compression algorithm. All it needs to compress a given data stream
+                are the <u>frequency tables</u> describing the probability distribution of each possible symbol in the
+                data.
+            </p>
+            <p>
+                rANS conceptually involves scanning through a <u>data-stream</u> one symbol at a time, in-order. As we
+                walk through the data-stream, we accumulate a compressed representation of each symbol into an integer
+                <u>state variable</u>.
+            </p>
+            <p>
+                Then, for decompression, we perform the procedure in reverse, obtaining decompressed symbols back from
+                the state variable.
+            </p>
+            <p>
+                The core of the algorithm is that each symbol, depending on its frequency, is assigned a <u>range</u> or
+                a <u>slot</u> in the state variable. Frequent symbols have large ranges (and consume fewer bits) and
+                infrequent symbols have small ranges (and consumer more bits). The frequency tables thus have the role
+                of <u>allocating bits to symbols</u>.
+            </p>
+            <h4>Compression Procedure</h4>
+            $$ X_t = \left\lfloor \frac{X_{t-1}}{\text{freq}[s_t]} \right\rfloor * M + \text{cfreq}[s_t] +
+            mod(X_{t-1}, \text{freq}[s_t]) $$
+
+            <br>
+            <h4>Decompression Procedure</h4>
+            $$
+            slot = mod(X_t, M) \\[1ex]
+            s_t = \text{inv\_cfreq}(slot) \\[1ex]
+            X_{t-1} = \left\lfloor \frac{X_t}{M} \right\rfloor * \text{freq}[s_t] + slot - \text{cfreq}[s_t]
+            $$
+
+            <p>
+                Where:
+            <ul>
+                <li>$s_t$ is the symbol we encountered at time $t$</li>
+                <li>$X_t$ is the state variable at time $t$</li>
+                <li>$\text{freq}[s_t]$ is the frequency table, telling us expected frequency of symbol $s_t$</li>
+                <li>$\text{cfreq}[s_t]$ is the cumulative frequency table</li>
+                <li>$\text{inv\_cfreq}[s_t]$ is a table mapping a slot back to the symbol that can fall in this range
+                </li>
+                <li>$M = \sum\limits_{s} \text{freq}[s]$ such that the probability of each symbol is $P_s =
+                    \text{freq}[s] / M$</li>
+            </ul>
+            </p>
+
+            <div class="callout aside">
+                <strong>$\text{inv\_cfreq}$ and Auxilliary Data</strong>
+                <p>
+                    Note that $\text{inv\_cfreq}$ is not implemented as a literal table stored in memory in real
+                    implementations. Instead, binary search over $\text{cfreq}$ is used to map slots back to symbols.
+                    But I still refer to it as a table, because my point is to highlight the <u>auxilliary data</u>
+                    needed by rANS, i.e. information apart from the main data-stream itself, that is needed for
+                    compression/decompression.
+                </p>
+            </div>
+            <div class="callout aside">
+                <strong>Resources (Again)</strong>
+                <p>
+                    I emphasize again: this article is <i>not</i> the right place to learn about ANS for the first time.
+                    I only aim to give a "feel" about what the algorithm looks like. Refer to other resources because
+                    there are several concepts (such as renormalization) that I will not mention at all, but are crucial
+                    for a practical implementation.
+                </p>
+            </div>
+
+            <h2>Resiliency and Probability Models</h2>
+            <p>
+                A very crucial property of ANS compression is that the frequency tables are only used for allocating
+                bits to symbols. Even if the real data-stream doesn't match the frequency tables at all, the algorithm
+                still works, you just get inferior compression ratio (maybe even $\lt 1$, i.e. expansion).
+            </p>
+            <p>
+                This means that <u>rANS is resilient</u>: it can tolerate divergence between the real data and the
+                frequency tables. Compression still works well even if the frequency tables only approximate the real
+                symbol distribution.
+            </p>
+            <p>
+                This means that we can <u>replace the frequency tables</u> with <u>probability models</u>, i.e. some
+                mathematical formula that tells us the expected frequency of each symbol. If we can derive a probability
+                mode, then the rANS code <u>does not need any table-lookups</u>. The tables can be <u>replaced by
+                    computed functions</u>. TODO: guassian diagram
+            </p>
+            <p>
+                In the figure above, even though the real data only has an approximately Gaussian structure, we can
+                still use a Gaussian probability model. And even though this is not optimal (optimal model would match
+                the data exactly), we have <i>at least</i> exploited the Gaussian structure in the data.
+            </p>
+            <p>
+                This creates a very lucrative optimization for rANS: If we can replace table lookups with computed
+                functions of a probability model, we have eliminated a significant source of irregular memory accesses.
+                This helps us <u>satisfy all 4 requirements</u> I listed in the previous section.
+            </p>
+
+            <div class="callout aside">
+                <strong>Resiliency Intuition: Part 1</strong>
+                <p>It is <i>crucial</i> to understand this intuitively, so heres an example:</p>
+                <p>
+                    Lets say our data-streams true distribution is a sum of a Gaussian and a Laplacian. These are two
+                    <u>structural facts</u> about our data that we can exploit for compression. If we use the Gaussian
+                    as the algorithm's probability model, then we have exploited the Gaussian fact, and left the
+                    Laplacian on the table. Likewise, if we use Laplacian as the model, we've exploited that and left
+                    the Gaussian fact on the table.
+                </p>
+                <p>
+                    The idea is that if our data has multiple structural facts, we can <u>pick and choose</u> which ones
+                    we include in the probability model.
+                </p>
+                <p>
+                    This is relevant to use because we will now create a probability model for sparse data. Even if the
+                    real data has multiple structural facts, we know that sparsity is one of them. So, all we need to do
+                    is to <u>model sparsity</u> and we will still enjoy considerable compression, even if there are
+                    other facts we have left on the table.
+                </p>
+                <p>This is why ANS resiliency is crucial to us.</p>
+            </div>
+
+            <h2>Probability Model for Sparse Data</h2>
+            <p>
+                We need to first define what exactly we mean by sparsity in an information-theoretic manner. First of
+                all,
+                lets call the zero-symbol $\varnothing$ to avoid confusion with the value zero.
+            <div class="callout conclusion">
+                <strong>Definition: Sparse Data</strong>
+                Data is said to be sparse if it has a "disproportionately high" number of $\varnothing$s
+            </div>
+            </p>
+
+            <p>
+                To define what we mean by "disproportionately high", we can build two <u>archetypical models</u> of
+                dense and sparse data:
+            </p>
+            <div class="callout conclusion">
+                <strong>Definition: Archetypical Models</strong>
+                <p>Lets define what the symbol histogram looks like for archetypical sparse and dense data.</p>
+                <p>
+                    Define $F(\varnothing)$ as the frequency of the $\varnothing$ symbol, and
+                    $F(\text{non-}\varnothing)$ as the frequency of <i>any</i> other symbol.
+                </p>
+                <p>
+                    In archetypical dense data, $F(\varnothing) = F(\text{non-}\varnothing)$ and the data is
+                    <u>uniformly distributed</u>.
+                </p>
+                <p>
+                    In archetypical sparse data, $F(\varnothing) \ne F(\text{non-}\varnothing)$ and the data is
+                    <u>non-uniformly distributed</u>.
+                </p>
+                <p>This non-uniformity is the reason why sparse data has low entropy and can be compressed at all. TODO:
+                    diagrams</p>
+            </div>
+
+            <p>A few more definitions pertaining to the above histograms:</p>
+            <div class="callout conclusion">
+                <strong>Definition: $N$ and $M$</strong>
+                <p>
+                    Define $N$ as the number of possible symbols (i.e. number of bars in the histogram). So for 8-bit
+                    data, $N = 256$.
+                </p>
+                <p>
+                    And define $M = \sum\limits_{s} \text{freq}[s]$, (i.e. sum of symbol frequencies).
+                </p>
+                <p>Note that $M$ has the same definition as in the rANS formula discussed before.</p>
+                <p>It can be seen that:</p>
+                $$ M = F(\varnothing) + (N-1) F(\text{non-}\varnothing) $$
+            </div>
+
+            <p>Now we can define a measure of sparsity:</p>
+            <div class="callout conclusion">
+                <strong>Definition: Sparsity</strong>
+                <p>
+                    Sparsity $S$ is the ratio of probability of finding a $\varnothing$ symbol vs finding a
+                    $\text{non-}\varnothing$ symbol.
+                </p>
+                $$ S = \frac{F(\varnothing)}{(N-1) F(\text{non-}\varnothing)} $$
+            </div>
+
+            <p>Now, using the above definitions of $M$ and $S$, we can solve to get:</p>
+            $$
+            F(\varnothing) = M \frac{S}{S+1} \\[3ex]
+            F(\text{non-}\varnothing) = \frac{M}{(N-1)(S+1)}
+            $$
+
+            <strong>This completes the probability model for sparse data.</strong>
+            <p>Given $M$, $N$ and $S$, we now have formulas to calculate the frequency of each symbol.</p>
+
+            <div class="callout aside">
+                <strong>Resiliency Intuition: Part 2</strong>
+                <p>
+                    As discussed before, we have only modelled the structural fact of "sparsity". We have modelled the
+                    difference between $\varnothing$ and $\text{non-}\varnothing$ symbols, assuming data is otherwise
+                    uniform. Each $\text{non-}\varnothing$ symbol has the same frequency $F(\text{non-}\varnothing)$.
+                </p>
+                <p>
+                    There could be structure within the $\text{non-}\varnothing$ symbols too, but we don't care about
+                    that. We have picked and chosen only the fact of sparsity to exploit.
+                </p>
+            </div>
+
+            <h2>Sparsity-Specialized rANS</h2>
+            <p>
+                We can now use the above probability model to replace the rANS tables:
+                $$
+                \begin{aligned}
+                \text{freq}[s_t] &= \begin{cases}
+                F(\varnothing) & \text{if } s_t = \varnothing \\
+                F(\text{non-}\varnothing) & \text{otherwise}
+                \end{cases} \\[3ex]
+
+                \text{cfreq}[s_t] &= \begin{cases}
+                0 & \text{if } s_t = \varnothing \\
+                F(\varnothing) + (s_t - 1) \cdot F(\text{non-}\varnothing) & \text{otherwise}
+                \end{cases} \\[3ex]
+
+                \text{inv\_cfreq}(\text{slot}) &= \begin{cases}
+                \varnothing & \text{if } \text{slot} \lt F(\varnothing) \\ 1 + \left\lfloor \frac{\text{slot} -
+                F(\varnothing)}{F(\text{non-}\varnothing)} \right\rfloor & \text{otherwise} \end{cases}
+                \end{aligned}
+                $$
+            </p>
+
+            <p>
+                Integrating this into the rANS compression and decompression procedures yields our
+                <u>Sparsity-Specialized rANS (SSrANS)</u> algorithm, i.e. rANS with a probability model for sparse data
+                instead of table-lookups.
+            </p>
+            <p>
+                Here is a code example of SSrANS:
+            <pre><code class="language-python"># Setup Inputs
+M = ...
+N = ...
+S = ...
+
+F_ZERO = (M * S) // (S + 1)
+F_NON_ZERO = M // ((N - 1) * (S + 1))
+
+
+# Probability model functions
+def freq(s):
+    if s == 0:
+        return F_ZERO
+    else:
+        return F_NON_ZERO
+
+def cfreq(s):
+    if s == 0:
+        return 0
+    else:
+        return F_ZERO + (s - 1) * F_NON_ZERO
+
+def inv_cfreq(slot):
+    if slot < F_ZERO:
+        return 0
+    else:
+      return 1 + (slot - F_ZERO) // F_NON_ZERO
+
+
+# Main procedures
+def compress(x, s):
+    return (x // freq(s)) * M + cfreq(s) + x % freq(s)
+
+def decompress(x):
+    slot = x % M
+    s = inv_cfreq(slot)
+    new_x = (x // M) * freq(s) + slot - cfreq(s)
+    return s, new_x</code></pre>
+            </p>
+
+            <p>
+                We can see that this satisfies our 4 requirements:
+            <ul>
+                <li>It optimally models sparsity without a 1 bit-per-symbol ceiling (unlike bitmaps)</li>
+                <li>When vectorized, each thread runs these procedures independently with no global
+                    instructions like <code>popcnt</code> or inter-thread communication</li>
+                <li>It has only one memory read (when reading the data-stream in compression, or the state variables in
+                    decompression). This read can be coalesced across threads.</li>
+                <li>It has only short branches that can be implemented using predicated instructions or masks</li>
+            </ul>
+            </p>
+
+            <h2>Vectorization</h2>
+            <p>
+                rANS is inherently a sequential algorithm. However parallel variants exist, such as <a
+                    href="https://dl.acm.org/doi/10.1145/3337821.3337888">Massively Parallel ANS Decoding on GPUs</a>,
+                as well as practical CUDA implementations, most notably <a
+                    href="https://github.com/facebookresearch/dietgpu/tree/main">dietgpu</a>.
+            </p>
+            <p>
+                In general, parallelized rANS relies on dividing the data into <u>multiple, interleaved streams</u>,
+                instead of a single data-stream. Now each thread can independently compress/decompress each stream.
+            </p>
+
+            <h2>Experimental Results</h2>
+            <p>
+                To show the performance advantages of SSrANS, lets compare it against a regular rANS implementation as
+                well as a bitmap scheme for sparse data. I test this on my Ryzen 7 9700x CPU using the AVX-512 SIMD
+                instruction set. It should be noted that although I'm using CPU SIMD, the general principles apply to
+                all vector processors.
+            </p>
+            <p>The code for these tests <a href="ssrans_code.html">can be found here</a>.</p>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p><a href="mailto:your.email@example.com">your.email@example.com</a> · <a
+                    href="https://linkedin.com/in/yourprofile">LinkedIn</a></p>
+        </div>
+    </footer>
+</body>
+
+</html>
