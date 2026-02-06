@@ -2,70 +2,67 @@
 // Loads: KaTeX (math), Prism (code highlighting), Tippy (tooltips)
 
 (function () {
+    // Helpers
+    function loadCSS(href) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        document.head.appendChild(link);
+    }
+
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
 
     // ===== KATEX (Math) =====
-    const katexCSS = document.createElement('link');
-    katexCSS.rel = 'stylesheet';
-    katexCSS.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
-    document.head.appendChild(katexCSS);
-
-    const katexJS = document.createElement('script');
-    katexJS.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';
-    katexJS.onload = function () {
-        const autoRender = document.createElement('script');
-        autoRender.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js';
-        autoRender.onload = function () {
-            renderMathInElement(document.body, {
-                delimiters: [
-                    { left: '$$', right: '$$', display: true },
-                    { left: '$', right: '$', display: false }
-                ]
-            });
-        };
-        document.head.appendChild(autoRender);
-    };
-    document.head.appendChild(katexJS);
+    async function initKaTeX() {
+        loadCSS('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css');
+        await loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js');
+        await loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js');
+        renderMathInElement(document.body, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false }
+            ]
+        });
+    }
 
     // ===== PRISM (Code highlighting) =====
-    const prismCSS = document.createElement('link');
-    prismCSS.rel = 'stylesheet';
-    prismCSS.href = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css';
-    document.head.appendChild(prismCSS);
-
-    const prismJS = document.createElement('script');
-    prismJS.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js';
-    prismJS.onload = function () {
-        // Load language components
+    async function initPrism() {
+        loadCSS('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css');
+        
+        // Disable auto-highlight - we'll trigger it manually after languages load
+        window.Prism = window.Prism || {};
+        window.Prism.manual = true;
+        
+        await loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js');
+        
+        // Load all language components, then highlight
         const languages = ['python', 'verilog'];
-        languages.forEach(lang => {
-            const langScript = document.createElement('script');
-            langScript.src = `https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-${lang}.min.js`;
-            document.head.appendChild(langScript);
-        });
-    };
-    document.head.appendChild(prismJS);
+        await Promise.all(
+            languages.map(lang => 
+                loadScript(`https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-${lang}.min.js`)
+            )
+        );
+        
+        Prism.highlightAll();
+    }
 
     // ===== TIPPY (Tooltips) =====
-    const tippyCSS = document.createElement('link');
-    tippyCSS.rel = 'stylesheet';
-    tippyCSS.href = 'https://unpkg.com/tippy.js@6/animations/shift-away.css';
-    document.head.appendChild(tippyCSS);
+    async function initTippy() {
+        loadCSS('https://unpkg.com/tippy.js@6/animations/shift-away.css');
+        await loadScript('https://unpkg.com/@popperjs/core@2');
+        await loadScript('https://unpkg.com/tippy.js@6');
 
-    const popper = document.createElement('script');
-    popper.src = 'https://unpkg.com/@popperjs/core@2';
-    popper.onload = function () {
-        const tippy = document.createElement('script');
-        tippy.src = 'https://unpkg.com/tippy.js@6';
-        tippy.onload = initTooltips;
-        document.head.appendChild(tippy);
-    };
-    document.head.appendChild(popper);
-
-    function initTooltips() {
-        // Auto-generate tooltips for external links only
+        // Auto-generate tooltips for external links
         document.querySelectorAll('a[href^="http"]').forEach(link => {
             if (link.hasAttribute('data-tippy-content')) return;
-
             try {
                 const url = new URL(link.href);
                 link.setAttribute('data-tippy-content', url.hostname);
@@ -73,11 +70,13 @@
             } catch (e) { }
         });
 
-        // Initialize Tippy
-        window.tippy('[data-tippy-content]', {
+        tippy('[data-tippy-content]', {
             animation: 'shift-away',
             arrow: true,
             theme: 'custom'
         });
     }
+
+    // Run all in parallel (they don't depend on each other)
+    Promise.all([initKaTeX(), initPrism(), initTippy()]);
 })();

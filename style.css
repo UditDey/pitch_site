@@ -17,8 +17,9 @@
     --color-text: #222222;
     --color-text-muted: #666666;
     --color-border: #dcdcda;
-    --color-link: #222222;
-    --color-link-hover: #555555;
+    --color-link: #145a88;
+    --color-link-hover: #0e4366;
+    --color-rule: #b5b5b0;
 
     /* Callout colors - more visible */
     --note-bg: #ddeaf3;
@@ -65,7 +66,7 @@ main {
 
 /* ===== HEADER & NAV ===== */
 header {
-    border-bottom: 1px solid #b5b5b0;
+    border-bottom: 1px solid var(--color-rule);
     padding: var(--spacing-unit) 0;
 }
 
@@ -137,16 +138,16 @@ p {
 }
 
 a {
-    color: #145a88;
+    color: var(--color-link);
     text-decoration: underline;
     text-decoration-thickness: 1.5px;
     text-underline-offset: 4px;
-    text-decoration-color: #145a8877;
+    text-decoration-color: color-mix(in srgb, var(--color-link) 50%, transparent);
 }
 
 a:hover {
-    color: #0e4366;
-    text-decoration-color: #0e4366;
+    color: var(--color-link-hover);
+    text-decoration-color: var(--color-link-hover);
 }
 
 strong {
@@ -166,7 +167,11 @@ ol {
 }
 
 li {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+li:last-child {
+    margin-bottom: 0;
 }
 
 li::marker {
@@ -231,7 +236,7 @@ figure.side.breakout {
     }
 }
 
-/* Clear floats after each proposal section */
+/* Clear floats before new sections (for side figures) */
 h3 {
     clear: both;
 }
@@ -300,25 +305,31 @@ pre {
 pre code {
     background: none;
     padding: 0;
+}
+
+/* Override Prism theme */
+code[class*="language-"],
+pre[class*="language-"] {
+    background: var(--color-bg-alt);
     font-size: 0.8rem;
     line-height: 1.5;
 }
 
-/* Override Prism background to match our theme */
-pre[class*="language-"] {
-    background-color: var(--color-bg-alt);
+/* ===== MATH ===== */
+.katex {
+    font-size: 1.05em;
 }
 
-/* ===== MATH ===== */
 .katex-display {
-    margin: var(--spacing-unit) 0;
+    margin: calc(var(--spacing-unit) * 1.25) 0;
+    padding: 0.5rem 0;
     overflow-x: auto;
     overflow-y: hidden;
 }
 
 /* ===== FOOTER ===== */
 footer {
-    border-top: 1px solid #b5b5b0;
+    border-top: 1px solid var(--color-rule);
     padding: var(--spacing-unit) 0;
     margin-top: calc(var(--spacing-unit) * 2);
 }
@@ -331,13 +342,11 @@ footer .container {
 }
 
 footer a {
-    color: #145a88;
-    text-decoration-color: #145a8877;
+    color: var(--color-link);
 }
 
 footer a:hover {
-    color: #0e4366;
-    text-decoration-color: #0e4366;
+    color: var(--color-link-hover);
 }
 
 /* ===== UTILITY ===== */
@@ -377,7 +386,7 @@ footer a:hover {
 
 hr {
     border: none;
-    border-top: 1px solid #b5b5b0;
+    border-top: 1px solid var(--color-rule);
     margin: calc(var(--spacing-unit) * 2) 0;
 }
 
