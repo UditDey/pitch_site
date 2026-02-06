@@ -302,18 +302,7 @@ pre {
     border: 1px solid var(--color-border);
 }
 
-pre code {
-    background: none;
-    padding: 0;
-}
-
-/* Override Prism theme */
-code[class*="language-"],
-pre[class*="language-"] {
-    background: var(--color-bg-alt);
-    font-size: 0.8rem;
-    line-height: 1.5;
-}
+/* Prism font overrides are in common.js (injected after Prism loads) */
 
 /* ===== MATH ===== */
 .katex {

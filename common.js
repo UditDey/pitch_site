@@ -29,28 +29,42 @@
             delimiters: [
                 { left: '$$', right: '$$', display: true },
                 { left: '$', right: '$', display: false }
-            ]
+            ],
+            strict: false
         });
     }
 
     // ===== PRISM (Code highlighting) =====
     async function initPrism() {
         loadCSS('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css');
-        
+
         // Disable auto-highlight - we'll trigger it manually after languages load
         window.Prism = window.Prism || {};
         window.Prism.manual = true;
-        
+
         await loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js');
-        
-        // Load all language components, then highlight
-        const languages = ['python', 'verilog'];
-        await Promise.all(
-            languages.map(lang => 
-                loadScript(`https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-${lang}.min.js`)
-            )
-        );
-        
+
+        // Load language components
+        await Promise.all([
+            loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js'),
+            loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-verilog.min.js')
+        ]);
+
+        // cpp depends on c, so load sequentially
+        await loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-c.min.js');
+        await loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-cpp.min.js');
+
+        // Inject our overrides AFTER Prism's CSS is loaded
+        const overrides = document.createElement('style');
+        overrides.textContent = `
+            code[class*="language-"],
+            pre[class*="language-"] {
+                font-size: 0.8rem;
+                line-height: 1.5;
+            }
+        `;
+        document.head.appendChild(overrides);
+
         Prism.highlightAll();
     }
 
