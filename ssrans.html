@@ -124,7 +124,7 @@
             <h4>Decompression Procedure</h4>
             $$
             slot = mod(X_t, M) \\[2ex]
-            s_t = \text{inv\_cfreq}(slot) \\[2ex]
+            s_t = \text{inv\_cfreq}[slot] \\[2ex]
             X_{t-1} = \left\lfloor \frac{X_t}{M} \right\rfloor * \text{freq}[s_t] + slot - \text{cfreq}[s_t]
             $$
 
@@ -135,7 +135,7 @@
                 <li>$X_t$ is the state variable at time $t$</li>
                 <li>$\text{freq}[s_t]$ is the frequency table, telling us expected frequency of symbol $s_t$</li>
                 <li>$\text{cfreq}[s_t]$ is the cumulative frequency table</li>
-                <li>$\text{inv\_cfreq}[s_t]$ is a table mapping a slot back to the symbol that can fall in this range
+                <li>$\text{inv\_cfreq}[slot]$ is a table mapping a slot back to the symbol that can fall in this range
                 </li>
                 <li>$M = \sum\limits_{s} \text{freq}[s]$ such that the probability of each symbol is $P_s =
                     \text{freq}[s] \ / \ M$</li>
@@ -145,7 +145,7 @@
             <div class="callout aside">
                 <strong>Auxilliary Data</strong>
                 <p>
-                    The three tables here: $\text{freq}[s_t]$, $\text{cfreq}[s_t]$ and $\text{inv\_cfreq}[s_t]$ can be
+                    The three tables here: $\text{freq}[s_t]$, $\text{cfreq}[s_t]$ and $\text{inv\_cfreq}[slot]$ can be
                     seen as <u>auxilliary data</u>, i.e. side-data that needs to be loaded in addiiton to the actual
                     data-streams/state variables for the algorithm to function.
                 </p>
@@ -246,8 +246,8 @@
                     In archetypical sparse data, $F(\varnothing) \ne F(\text{non-}\varnothing)$ and the data is
                     <u>non-uniformly distributed</u>.
                 </p>
-                <p>This non-uniformity is the reason why sparse data has low entropy and can be compressed at all. TODO:
-                    diagrams</p>
+                <figure><img src="img/ssrans/histogram_archetype.png" title="Archetypical Histograms"></figure>
+                <p>This non-uniformity is the reason why sparse data has low entropy and can be compressed at all.</p>
             </div>
 
             <p>A few more definitions pertaining to the above histograms:</p>
@@ -269,7 +269,7 @@
             <div class="callout conclusion">
                 <strong>Definition: Sparsity</strong>
                 <p>
-                    Sparsity $S$ is the ratio of probability of finding a $\varnothing$ symbol vs finding a
+                    Define sparsity $S$ as the ratio of probability of finding a $\varnothing$ symbol vs finding a
                     $\text{non-}\varnothing$ symbol.
                 </p>
                 $$ S = \frac{F(\varnothing)}{(N-1) F(\text{non-}\varnothing)} $$
@@ -284,6 +284,15 @@
             <strong>This completes the probability model for sparse data.</strong>
             <p>Given $M$, $N$ and $S$, we now have formulas to calculate the frequency of each symbol.</p>
 
+            <div class="callout aside">
+                <strong>Percentage Sparsity</strong>
+                <p>
+                    Note that the above definition of $S$ is a probabilistic definition. This suits our needs but
+                    colloquially, sparsity is written as the percentage of $\varnothing$ symbols:
+                    $$ S_{\text{percent}} = \frac{F(\varnothing)}{M} \times 100 \% $$
+                </p>
+                <p>I will use "percentage-sparsity" to refer to this definition.</p>
+            </div>
             <div class="callout aside">
                 <strong>Resiliency Intuition: Part 2</strong>
                 <p>
@@ -312,7 +321,7 @@
                 F(\varnothing) + (s_t - 1) \cdot F(\text{non-}\varnothing) & \text{otherwise}
                 \end{cases} \\[4ex]
 
-                \text{inv\_cfreq}(\text{slot}) &= \begin{cases}
+                \text{inv\_cfreq}[\text{slot}] &= \begin{cases}
                 \varnothing & \text{if } \text{slot} \lt F(\varnothing) \\ 1 + \left\lfloor \frac{\text{slot} -
                 F(\varnothing)}{F(\text{non-}\varnothing)} \right\rfloor & \text{otherwise} \end{cases}
                 \end{aligned}
@@ -380,7 +389,30 @@ def decompress(x):
 
             <h2>Constant Rounding</h2>
             <p>
-                TODO:
+                rANS only operates on integers. All values involved <i>must</i> be integers. This presents a problem
+                because the two constants we calculate, $F(\varnothing)$ and $F(\text{non-}\varnothing)$, may not
+                necessarily be integers. To solve this we need to <u>round them to the nearest integer</u>, while
+                ensuring that the $M = F(\varnothing) + (N-1) F(\text{non-}\varnothing)$ condition still holds. If the
+                rounding error is small enough, then the impact on optimality is negligible.
+            </p>
+            <p>
+                One simple rounding strategy is:
+            <pre><code class="language-python">def round_ssrans_params(M, N, S):
+    # Step 1: Round F_nonzero to nearest integer, minimum 1
+    F_nonzero = max(1, round(M / ((N - 1) * (S + 1))))
+
+    # Step 2: Derive F_zero from the constraint M = F_zero + (N-1) * F_nonzero
+    F_zero = M - (N - 1) * F_nonzero
+
+    # Step 3: If F_zero is too small, fix it and recompute
+    if F_zero < 1:
+        F_zero = 1
+        F_nonzero = (M - F_zero) // (N - 1)
+        F_zero = M - (N - 1) * F_nonzero
+
+    # Both guaranteed to be integers
+    return F_zero, F_nonzero
+</code></pre>
             </p>
 
             <h2>Vectorization</h2>
@@ -409,9 +441,9 @@ def decompress(x):
                 factors and shows us the throughput of the core algorithms itself: TODO: bar chart
             </p>
             <p>
-                SSrANS has 55% higher throughput than vanilla rANS, and XX% higher throughput than bitmaps. Its clear
-                that bitmaps are the worst option for parallel, vectorized implementations, and sparsity-specialization
-                provides considerable gains to vanilla rANS.
+                SSrANS has <u>55% higher throughput than vanilla rANS</u>, and XX% higher throughput than bitmaps. Its
+                clear that bitmaps are the worst option for parallel, vectorized implementations, and
+                sparsity-specialization provides considerable gains to vanilla rANS.
             </p>
             <p>
                 The SSrANS and vanilla rANS CUDA kernels look almost identical, but the difference can be seen clearly
@@ -422,9 +454,10 @@ def decompress(x):
             </p>
             <p>
                 Finally, we need to also compare compression ratios. For this, we have <a
-                    href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/ratio">a python script</a> that
-                compresses random data with adjustable sparsity, and compares the compression ratios of bitmaps, rANS
-                (with perfect frequency tables) and SSrANS:
+                    href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/ratio"
+                    style="white-space: nowrap">a python script</a> that compresses random data with adjustable
+                sparsity, and compares the compression ratios of bitmaps, rANS (with perfect frequency tables) and
+                SSrANS:
             </p>
             <figure><img src="img/ssrans/ssrans_compression_ratio.png" title="Echo Cache Diagram"></figure>
             <p>
@@ -448,8 +481,6 @@ def decompress(x):
                 vectorized implementations and was motivated by the need for compressing sparse data (such as pruned KV
                 caches) on AI inference hardware.
             </p>
-
-            <h2>Future Developments</h2>
         </div>
     </main>
 

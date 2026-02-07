@@ -166,10 +166,6 @@ a.external::after {
     top: 0.05em;
 }
 
-a.external {
-    white-space: nowrap;
-}
-
 strong {
     font-weight: 600;
 }
