@@ -57,7 +57,7 @@
 
             <h2>The Proposal</h2>
             <p>
-                I suggest that an optimal compression algorithm for sparse data should:
+                I suggest that an optimal, high performance compression algorithm for sparse data should:
             <ul>
                 <li>Be close to information-theoretically optimal</li>
                 <li>Should not use complex global instructions like <code>popcnt</code></li>
@@ -123,8 +123,8 @@
             <br>
             <h4>Decompression Procedure</h4>
             $$
-            slot = mod(X_t, M) \\[1ex]
-            s_t = \text{inv\_cfreq}(slot) \\[1ex]
+            slot = mod(X_t, M) \\[2ex]
+            s_t = \text{inv\_cfreq}(slot) \\[2ex]
             X_{t-1} = \left\lfloor \frac{X_t}{M} \right\rfloor * \text{freq}[s_t] + slot - \text{cfreq}[s_t]
             $$
 
@@ -143,14 +143,17 @@
             </p>
 
             <div class="callout aside">
-                <strong>$\text{inv\_cfreq}$ and Auxilliary Data</strong>
+                <strong>Auxilliary Data</strong>
                 <p>
-                    Note that $\text{inv\_cfreq}$ is not implemented as a literal table stored in memory in real
-                    implementations. Instead, binary search over $\text{cfreq}$ is used to map slots back to symbols.
-                    But I still refer to it as a table, because my point is to highlight the <u>auxilliary data</u>
-                    needed by rANS, i.e. information apart from the main data-stream itself, that is needed for
-                    compression/decompression.
+                    The three tables here: $\text{freq}[s_t]$, $\text{cfreq}[s_t]$ and $\text{inv\_cfreq}[s_t]$ can be
+                    seen as <u>auxilliary data</u>, i.e. side-data that needs to be loaded in addiiton to the actual
+                    data-streams/state variables for the algorithm to function.
                 </p>
+                <p>
+                    It is precisely the need to load this auxilliary data that limits rANS performance. When vectorized,
+                    threads must use inefficient/irregular/uncoalescable memory access patterns to read these tables.
+                </p>
+                <p>The purpose of this article is to present a variation of rANS that does not need table-lookups.</p>
             </div>
             <div class="callout aside">
                 <strong>Resources (Again)</strong>
@@ -194,7 +197,7 @@
                 <strong>Resiliency Intuition: Part 1</strong>
                 <p>It is <i>crucial</i> to understand this intuitively, so heres an example:</p>
                 <p>
-                    Lets say our data-streams true distribution is a sum of a Gaussian and a Laplacian. These are two
+                    Lets say our data-stream's true distribution is a sum of a Gaussian and a Laplacian. These are two
                     <u>structural facts</u> about our data that we can exploit for compression. If we use the Gaussian
                     as the algorithm's probability model, then we have exploited the Gaussian fact, and left the
                     Laplacian on the table. Likewise, if we use Laplacian as the model, we've exploited that and left
@@ -255,9 +258,9 @@
                     data, $N = 256$.
                 </p>
                 <p>
-                    And define $M = \sum\limits_{s} \text{freq}[s]$, (i.e. sum of symbol frequencies).
+                    And define $M = \sum\limits_{s} \text{freq}[s]$, (i.e. sum of bar heights).
                 </p>
-                <p>Note that $M$ has the same definition as in the rANS formula discussed before.</p>
+                <p>Note that $M$ has the same definition here as in the rANS formula discussed before.</p>
                 <p>It can be seen that:</p>
                 $$ M = F(\varnothing) + (N-1) F(\text{non-}\varnothing) $$
             </div>
@@ -274,7 +277,7 @@
 
             <p>Now, using the above definitions of $M$ and $S$, we can solve to get:</p>
             $$
-            F(\varnothing) = M \frac{S}{S+1} \\[3ex]
+            F(\varnothing) = M \left( \frac{S}{S+1} \right) \\[3ex]
             F(\text{non-}\varnothing) = \frac{M}{(N-1)(S+1)}
             $$
 
@@ -302,12 +305,12 @@
                 \text{freq}[s_t] &= \begin{cases}
                 F(\varnothing) & \text{if } s_t = \varnothing \\
                 F(\text{non-}\varnothing) & \text{otherwise}
-                \end{cases} \\[3ex]
+                \end{cases} \\[4ex]
 
                 \text{cfreq}[s_t] &= \begin{cases}
                 0 & \text{if } s_t = \varnothing \\
                 F(\varnothing) + (s_t - 1) \cdot F(\text{non-}\varnothing) & \text{otherwise}
-                \end{cases} \\[3ex]
+                \end{cases} \\[4ex]
 
                 \text{inv\_cfreq}(\text{slot}) &= \begin{cases}
                 \varnothing & \text{if } \text{slot} \lt F(\varnothing) \\ 1 + \left\lfloor \frac{\text{slot} -
@@ -375,6 +378,11 @@ def decompress(x):
             </ul>
             </p>
 
+            <h2>Constant Rounding</h2>
+            <p>
+                TODO:
+            </p>
+
             <h2>Vectorization</h2>
             <p>
                 rANS is inherently a sequential algorithm. However parallel variants exist, such as <a
@@ -390,11 +398,54 @@ def decompress(x):
             <h2>Experimental Results</h2>
             <p>
                 To show the performance advantages of SSrANS, lets compare it against a regular rANS implementation as
-                well as a bitmap scheme for sparse data. I test this on my Ryzen 7 9700x CPU using the AVX-512 SIMD
-                instruction set. It should be noted that although I'm using CPU SIMD, the general principles apply to
-                all vector processors.
+                well as a bitmap scheme for sparse data. I will implement all 3 as CUDA kernels and test them on my
+                NVIDIA RTX 5070.
             </p>
-            <p>The code for these tests <a href="ssrans_code.html">can be found here</a>.</p>
+            <p>
+                The CUDA kernels and benchmarking code <a href="ssrans_cuda.html">can be found here</a>. These are test
+                kernels designed to just show the core algorithms. They don't operate on real data, run on a single
+                streaming-multiprocessor and only feed from shared-memory. This eliminates any confounding factors and
+                shows us the throughput of the core algorithms itself: TODO: bar chart
+            </p>
+            <p>
+                SSrANS has 55% higher throughput than vanilla rANS, and XX% higher throughput than bitmaps. Its clear
+                that bitmaps are the worst option for parallel, vectorized implementations, and sparsity-specialization
+                provides considerable gains to vanilla rANS.
+            </p>
+            <p>
+                The SSrANS and vanilla rANS CUDA kernels look almost identical, but the difference can be seen clearly
+                when comparing the <a href="ssrans_ptx.html">kernels' PTX code</a>. The SSrANS kernel is significantly
+                smaller because in addition to removing the 3 <code>ld.shared.u32</code> instructions, we've also gotten
+                rid of the address calculations. SSrANS has a clear performance advantage even aside from the
+                bank-conflict and uncoalescable reads problem.
+            </p>
+            <p>
+                Finally, we need to also compare compression ratios. For this, we have <a href="ssrans_ratio.html">a
+                    python script</a> that compresses random data with adjustable sparsity, and compares the compression
+                ratios of bitmaps, rANS (with perfect frequency tables) and SSrANS: TODO: bar chart
+            </p>
+            <p>
+                At high sparsity, bitmaps hit the "1 bit-per-symbol" ceiling. SSrANS and vanilla rANS have
+                similar compression ratios, which is notable considering that vanilla rANS uses exact frequency tables
+                while SSrANS only uses an approximate probability model.
+            </p>
+
+            <h2>Conclusion</h2>
+            <p>
+                In this article I've presented <b>Sparsity-Specialized rANS</b>, a variation of rANS compression with a
+                probability model for sparse data baked in, replacing typical table lookups.
+            </p>
+            <p>
+                SSrANS and two schemes it competes with (vanilla rANS and bitmaps) were implemented and benchmarked, and
+                the results clearly show that SSrANS provides superior throughput at comparable compression ratios.
+            </p>
+            <p>
+                Therefore, SSrANS is a potent compression algorithm for sparse data. Its suitable for parallel,
+                vectorized implementations and was motivated by the need for compressing sparse data (such as pruned KV
+                caches) on AI inference hardware.
+            </p>
+
+            <h2>Future Developments</h2>
         </div>
     </main>
 

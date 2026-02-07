@@ -126,7 +126,7 @@
             </p>
 
             <h2>Detailed Explanation</h2>
-            <figure><img src="dual_omega_storage.svg" title="Echo Cache Diagram"></figure>
+            <figure><img src="img/echo/dual_omega_storage.svg" title="Echo Cache Diagram"></figure>
             <p>
                 We use a pair of MINs: the <b>control network</b> and the <b>transfer network</b>. Both are
                 self-routing, so switches make their own local decisions. First, address packets travel from read-ports,
@@ -149,7 +149,7 @@
                 form a fan-out routing. This is the core mechanism behind the fan-out/broadcast capability of the Echo
                 Cache.
             </p>
-            <figure><img src="fanin_fanout.svg" title="Echo Cache Diagram"></figure>
+            <figure><img src="img/echo/fanin_fanout.svg" title="Echo Cache Diagram"></figure>
 
             <p>
                 This presents an issue: if some packets are dropped in the control phase, those read ports will never
@@ -189,9 +189,9 @@
                 </p>
             </div>
 
-            <figure><img src="switch_states.svg" title="Echo Cache Diagram"></figure>
-            <figure><img src="switch_conflict.svg" title="Echo Cache Diagram"></figure>
-            <figure><img src="switch_bidir.svg" title="Echo Cache Diagram"></figure>
+            <figure><img src="img/echo/switch_states.svg" title="Echo Cache Diagram"></figure>
+            <figure><img src="img/echo/switch_conflict.svg" title="Echo Cache Diagram"></figure>
+            <figure><img src="img/echo/switch_bidir.svg" title="Echo Cache Diagram"></figure>
 
             <h2>Verilog Sample</h2>
             <p>
