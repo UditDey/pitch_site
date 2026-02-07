@@ -76,12 +76,17 @@
 
         // Auto-generate tooltips for external links
         document.querySelectorAll('a[href^="http"]').forEach(link => {
-            if (link.hasAttribute('data-tippy-content')) return;
-            try {
-                const url = new URL(link.href);
-                link.setAttribute('data-tippy-content', url.hostname);
-                link.classList.add('external');
-            } catch (e) { }
+            // Open external links in new tab
+            link.setAttribute('target', '_blank');
+            link.setAttribute('rel', 'noopener noreferrer');
+            link.classList.add('external');
+
+            if (!link.hasAttribute('data-tippy-content')) {
+                try {
+                    const url = new URL(link.href);
+                    link.setAttribute('data-tippy-content', url.hostname);
+                } catch (e) { }
+            }
         });
 
         tippy('[data-tippy-content]', {

@@ -138,7 +138,7 @@
                 <li>$\text{inv\_cfreq}[s_t]$ is a table mapping a slot back to the symbol that can fall in this range
                 </li>
                 <li>$M = \sum\limits_{s} \text{freq}[s]$ such that the probability of each symbol is $P_s =
-                    \text{freq}[s] / M$</li>
+                    \text{freq}[s] \ / \ M$</li>
             </ul>
             </p>
 
@@ -210,8 +210,8 @@
                 <p>
                     This is relevant to use because we will now create a probability model for sparse data. Even if the
                     real data has multiple structural facts, we know that sparsity is one of them. So, all we need to do
-                    is to <u>model sparsity</u> and we will still enjoy considerable compression, even if there are
-                    other facts we have left on the table.
+                    is to <u>model sparsity</u> and we will <i>still</i> enjoy considerable compression, even if there
+                    are other facts we have left on the table.
                 </p>
                 <p>This is why ANS resiliency is crucial to us.</p>
             </div>
@@ -220,7 +220,7 @@
             <p>
                 We need to first define what exactly we mean by sparsity in an information-theoretic manner. First of
                 all,
-                lets call the zero-symbol $\varnothing$ to avoid confusion with the value zero.
+                lets call the zero-symbol " $\varnothing$ " to avoid confusion with the value zero.
             <div class="callout conclusion">
                 <strong>Definition: Sparse Data</strong>
                 Data is said to be sparse if it has a "disproportionately high" number of $\varnothing$s
@@ -275,7 +275,7 @@
                 $$ S = \frac{F(\varnothing)}{(N-1) F(\text{non-}\varnothing)} $$
             </div>
 
-            <p>Now, using the above definitions of $M$ and $S$, we can solve to get:</p>
+            <p>Using the above formulas for $M$ and $S$, we can solve to get:</p>
             $$
             F(\varnothing) = M \left( \frac{S}{S+1} \right) \\[3ex]
             F(\text{non-}\varnothing) = \frac{M}{(N-1)(S+1)}
@@ -402,10 +402,11 @@ def decompress(x):
                 NVIDIA RTX 5070.
             </p>
             <p>
-                The CUDA kernels and benchmarking code <a href="ssrans_cuda.html">can be found here</a>. These are test
-                kernels designed to just show the core algorithms. They don't operate on real data, run on a single
-                streaming-multiprocessor and only feed from shared-memory. This eliminates any confounding factors and
-                shows us the throughput of the core algorithms itself: TODO: bar chart
+                The CUDA kernels and benchmarking code <a
+                    href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/benchmark">can be found here</a>.
+                These are test kernels designed to just show the core algorithms. They don't operate on real data, run
+                on a single streaming-multiprocessor and only feed from shared-memory. This eliminates any confounding
+                factors and shows us the throughput of the core algorithms itself: TODO: bar chart
             </p>
             <p>
                 SSrANS has 55% higher throughput than vanilla rANS, and XX% higher throughput than bitmaps. Its clear
@@ -414,20 +415,23 @@ def decompress(x):
             </p>
             <p>
                 The SSrANS and vanilla rANS CUDA kernels look almost identical, but the difference can be seen clearly
-                when comparing the <a href="ssrans_ptx.html">kernels' PTX code</a>. The SSrANS kernel is significantly
-                smaller because in addition to removing the 3 <code>ld.shared.u32</code> instructions, we've also gotten
-                rid of the address calculations. SSrANS has a clear performance advantage even aside from the
-                bank-conflict and uncoalescable reads problem.
+                when comparing the <a href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/ptx">kernels'
+                    PTX code</a>. The SSrANS kernel is significantly smaller because in addition to removing the 3
+                <code>ld.shared.u32</code> instructions, we've also gotten rid of the address calculations. SSrANS has a
+                clear performance advantage even aside from the bank-conflict and uncoalescable reads problem.
             </p>
             <p>
-                Finally, we need to also compare compression ratios. For this, we have <a href="ssrans_ratio.html">a
-                    python script</a> that compresses random data with adjustable sparsity, and compares the compression
-                ratios of bitmaps, rANS (with perfect frequency tables) and SSrANS: TODO: bar chart
+                Finally, we need to also compare compression ratios. For this, we have <a
+                    href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/ratio">a python script</a> that
+                compresses random data with adjustable sparsity, and compares the compression ratios of bitmaps, rANS
+                (with perfect frequency tables) and SSrANS:
             </p>
+            <figure><img src="img/ssrans/ssrans_compression_ratio.png" title="Echo Cache Diagram"></figure>
             <p>
-                At high sparsity, bitmaps hit the "1 bit-per-symbol" ceiling. SSrANS and vanilla rANS have
-                similar compression ratios, which is notable considering that vanilla rANS uses exact frequency tables
-                while SSrANS only uses an approximate probability model.
+                At high percentage-sparsity, bitmaps deviate from the optimal Shannon entropy, while rANS and SSrANS
+                stay close to it. It should also be noted that vanilla rANS and SSrANS compression ratios are so similar
+                that the lines are indistinguishable. This is notable since vanilla rANS has exact frequency tables, but
+                SSrANS only has an approximate probability model.
             </p>
 
             <h2>Conclusion</h2>
