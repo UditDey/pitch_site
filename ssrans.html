@@ -21,6 +21,16 @@
             <h1>Sparsity-Specialized rANS Compression</h1>
             <p class="subtitle">A fast, vector algorithm for compressing sparse data</p>
 
+            <!--<h2>Article Fixes:</h2>
+            <ul>
+                <li>Fewer underlines</li>
+                <li>Introduce bitmap more logically wrt MUSTAFAR, shoot down RLE/CSC too</li>
+                <li>In experimental results, start with what the kernels are designed for, not what they are not - "We
+                    benchmark the core decode loop in isolation on shared memory to measure raw algorithmic throughput"
+                </li>
+                <li>Stronger conclusion with KV cache pruning upfront, its lopsided right now</li>
+            </ul>-->
+
             <h2>The Problem</h2>
             <p>
                 LLM inference may involve <u>sparse data</u>, which is naturally compressible. Optimal compression is
@@ -42,11 +52,11 @@
                 If we try to vectorize this, each thread will have to:
             <ol>
                 <li>Check if its position is zero or not</li>
-                <li>If not zero, use a <code>popcnt</code> or something similar to find its data in the dense array
+                <li>If not zero, use a prefix-sum over the bitmap to find its data in the dense array
                 </li>
             </ol>
 
-            Step 1 is efficient (the bitmap read can be coalesced), step 2 is not.
+            Bitmap schemes are therefore a 2 step process, and parallel prefix-sum is non-trivial.
             </p>
             <p>
                 Another criticism of bitmaps, is that they can be <u>information-theoretically suboptimal</u>. At
@@ -60,7 +70,7 @@
                 I suggest that an optimal, high performance compression algorithm for sparse data should:
             <ul>
                 <li>Be close to information-theoretically optimal</li>
-                <li>Should not use complex global instructions like <code>popcnt</code></li>
+                <li>Should not use complex, global operations like prefix-sum</li>
                 <li>Should only have regular, coalescable memory reads</li>
                 <li>Should not have long, divergent branching</li>
             </ul>
@@ -179,9 +189,17 @@
             <p>
                 This means that we can <u>replace the frequency tables</u> with <u>probability models</u>, i.e. some
                 mathematical formula that tells us the expected frequency of each symbol. If we can derive a probability
-                mode, then the rANS code <u>does not need any table-lookups</u>. The tables can be <u>replaced by
-                    computed functions</u>. TODO: guassian diagram
+                model, then the rANS code <u>does not need any table-lookups</u>. The tables can be <u>replaced by
+                    computed functions</u>.
             </p>
+            <figure>
+                <img src="img/ssrans/gaussian_diagram.png" title="Example Gaussian Probability Model"
+                    alt="Example Gaussian Probability Model">
+                <figcaption>
+                    Figure 1: Example of a Gaussian probability model and the real data it represents. The distributions
+                    don't match, yet rANS works losslessly and decent compression gains are achieved.
+                </figcaption>
+            </figure>
             <p>
                 In the figure above, even though the real data only has an approximately Gaussian structure, we can
                 still use a Gaussian probability model. And even though this is not optimal (optimal model would match
@@ -243,13 +261,23 @@
                     <u>uniformly distributed</u>.
                 </p>
                 <p>
-                    In archetypical sparse data, $F(\varnothing) \ne F(\text{non-}\varnothing)$ and the data is
+                    In archetypical sparse data, $F(\varnothing) \gt F(\text{non-}\varnothing)$ and the data is
                     <u>non-uniformly distributed</u>.
                 </p>
-                <figure><img src="img/ssrans/histogram_archetype.png" title="Archetypical Histograms"></figure>
-                <p>This non-uniformity is the reason why sparse data has low entropy and can be compressed at all.</p>
+                <figure>
+                    <img src="img/ssrans/histogram_archetype.png" title="Archetypical Histograms"
+                        alt="Archetypical Histograms">
+                    <figcaption>
+                        Figure 2: Archetypical symbol probability distributions for dense and sparse data. Dense is
+                        completely uniform and sparse assumes a higher number of $\varnothing$s.
+                    </figcaption>
+                </figure>
             </div>
 
+            <p>
+                This sparse archetype will be our probability model. We just need to calculate values for
+                $F(\varnothing)$ and $F(\text{non-}\varnothing)$.
+            </p>
             <p>A few more definitions pertaining to the above histograms:</p>
             <div class="callout conclusion">
                 <strong>Definition: $N$ and $M$</strong>
@@ -270,7 +298,7 @@
                 <strong>Definition: Sparsity</strong>
                 <p>
                     Define sparsity $S$ as the ratio of probability of finding a $\varnothing$ symbol vs finding a
-                    $\text{non-}\varnothing$ symbol.
+                    $\text{non-}\varnothing$ symbol:
                 </p>
                 $$ S = \frac{F(\varnothing)}{(N-1) F(\text{non-}\varnothing)} $$
             </div>
@@ -413,6 +441,40 @@ def decompress(x):
     # Both guaranteed to be integers
     return F_zero, F_nonzero
 </code></pre>
+
+            <div class="callout aside">
+                <strong>Choosing $M$</strong>
+                <p>
+                    Note that unlike $N$ and $S$, $M$ isn't property of the data-stream. Rather, its a constant we have
+                    to set. $M$ intuitively controls the "resolution" or "granularity" of the probability model.
+                </p>
+                <p>
+                    $M$ is adjustable (instead of being a constant function of the data-stream) because in all
+                    entropy-coders, we only care about the relative distribution of symbol frequencies, not their
+                    absolute values. So we can scale the histogram however we want, and therefore $M$ is not fixed.
+                </p>
+                <p>
+                    For efficiency, we commonly set $M$ to a power-of-two.
+                </p>
+            </div>
+            <div class="callout aside">
+                <strong>Is $S$ an input?</strong>
+                <p>
+                    In this article, I treat the probability model as being parametrized by $(M, N, S)$. This means both
+                    compression and decompression requires us to know these three constants. This is fine for $M$ and
+                    $N$, but is a little unusual for $S$, because how can we know the sparsity of the data-stream before
+                    we've processed it?
+                </p>
+                <P>
+                    For our particular motivation, KV cache pruning, this is acceptable, since pruning typically
+                    assumes a target percentage-sparsity to begin with, i.e. we already know how much pruning we're
+                    going to do. Hence, we already know $S$ before compressing/decompressing the pruned KV cache.
+                </P>
+                <p>
+                    In case we don't know $S$ as a constant upfront, we can build a dynamic model, where $S$ is "learnt"
+                    as we process the data-stream.
+                </p>
+            </div>
             </p>
 
             <h2>Vectorization</h2>
@@ -459,7 +521,13 @@ def decompress(x):
                 sparsity, and compares the compression ratios of bitmaps, rANS (with perfect frequency tables) and
                 SSrANS:
             </p>
-            <figure><img src="img/ssrans/ssrans_compression_ratio.png" title="Echo Cache Diagram"></figure>
+            <figure>
+                <img src="img/ssrans/ssrans_compression_ratio.png" title="Compression Ratio Comparison"
+                    alt="Compression Ratio Comparison">
+                <figcaption>
+                    Figure 4: Comparison of the same data being compressed under SSrANS, vanilla rANS and bitmaps.
+                </figcaption>
+            </figure>
             <p>
                 At high percentage-sparsity, bitmaps deviate from the optimal Shannon entropy, while rANS and SSrANS
                 stay close to it. It should also be noted that vanilla rANS and SSrANS compression ratios are so similar
