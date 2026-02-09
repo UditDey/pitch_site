@@ -34,7 +34,7 @@
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-serif: 'Source Serif 4', Georgia, serif;
 
-    --content-width: 790px;
+    --content-width: 770px;
     --spacing-unit: 1.5rem;
 }
 
@@ -203,6 +203,7 @@ figure img {
     display: block;
     max-width: 100%;
     height: auto;
+    margin: 0 auto;
     border: 1px solid var(--color-border);
     border-radius: 4px;
 }

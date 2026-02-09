@@ -126,7 +126,13 @@
             </p>
 
             <h2>Detailed Explanation</h2>
-            <figure><img src="img/echo/dual_omega_storage.svg" title="Echo Cache Diagram"></figure>
+            <figure>
+                <img src="img/echo/dual_omega_storage.svg" title="Echo Cache Diagram" alt="Echo Cache Diagram">
+                <figcaption>
+                    Figure 1: Overall Architecture of the Echo Cache. Addresses flow down the control network, data
+                    flows up the transfer network.
+                </figcaption>
+            </figure>
             <p>
                 We use a pair of MINs: the <b>control network</b> and the <b>transfer network</b>. Both are
                 self-routing, so switches make their own local decisions. First, address packets travel from read-ports,
@@ -149,7 +155,13 @@
                 form a fan-out routing. This is the core mechanism behind the fan-out/broadcast capability of the Echo
                 Cache.
             </p>
-            <figure><img src="img/echo/fanin_fanout.svg" title="Echo Cache Diagram"></figure>
+            <figure>
+                <img src="img/echo/fanin_fanout.svg" title="Fan-in to Fan-out Diagram" alt="Fan-in to Fan-out Diagram">
+                <figcaption>
+                    Figure 2: Visual example of a fan-in routing becoming a fan-out routing when traced in reverse. This
+                    is what allows the storage-array to "multicast" data to read-ports, reducing serialization.
+                </figcaption>
+            </figure>
 
             <p>
                 This presents an issue: if some packets are dropped in the control phase, those read ports will never
@@ -189,9 +201,28 @@
                 </p>
             </div>
 
-            <figure><img src="img/echo/switch_states.svg" title="Echo Cache Diagram"></figure>
-            <figure><img src="img/echo/switch_conflict.svg" title="Echo Cache Diagram"></figure>
-            <figure><img src="img/echo/switch_bidir.svg" title="Echo Cache Diagram"></figure>
+            <figure>
+                <img src="img/echo/switch_states.svg" title="Example States of 2x2 Switch"
+                    alt="Example States of 2x2 Switch">
+                <figcaption>
+                    Figure 3: Diagram showing the 4 states of a 2x2 switch to be used in the MIN
+                </figcaption>
+            </figure>
+            <figure>
+                <img src="img/echo/switch_conflict.svg" title="Example Blocking States of a 2x2 Switch">
+                <figcaption>
+                    Figure 4: Diagram showing the 2 additional packet dropping states when there is contention but
+                    packets cannot be merged. We have a static rule here: the left input packet always loses.
+                </figcaption>
+            </figure>
+            <figure>
+                <img src="img/echo/switch_bidir.svg" title="Bidirectional Switch Behaviour"
+                    alt="Bidirectional Switch Behaviour">
+                <figcaption>
+                    Figure 5: Interpretation of switch behaviour in forward vs reverse directions. Note that the switch
+                    becomes asymmetrical when blocking or merging takes place.
+                </figcaption>
+            </figure>
 
             <h2>Verilog Sample</h2>
             <p>
@@ -315,7 +346,7 @@ endmodule</code></pre>
                 2 phase MIN to route addresses to banks, and then data back to read-ports.
             </p>
             <p>
-                This design allows for a large number of banks and read-ports, without the scalability issues of
+                The use of MINs allows for a large number of banks and read-ports without the scalability issues of
                 crossbars.
             </p>
             <p>
