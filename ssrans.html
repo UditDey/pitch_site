@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LLM Inference Optimization Proposals</title>
-    <link rel="stylesheet" href="/style.css">
-    <script defer src="/common.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="common.js"></script>
 </head>
 
 <body>
@@ -40,7 +40,7 @@
             </p>
             <p>
                 However, existing compression formats for sparse data are <u>not efficient on vector processors</u>. As
-                explained in <a href="/prereq.html">Prerequisite Concepts</a>, coalesable memory reads are essential for
+                explained in <a href="prereq.html">Prerequisite Concepts</a>, coalesable memory reads are essential for
                 fast performance, but existing formats for sparse data, such as bitmaps, have performance limitations on
                 wide vector processors.
             </p>
@@ -193,7 +193,7 @@
                     computed functions</u>.
             </p>
             <figure>
-                <img src="/img/ssrans/gaussian_diagram.png" title="Example Gaussian Probability Model"
+                <img src="img/ssrans/gaussian_diagram.png" title="Example Gaussian Probability Model"
                     alt="Example Gaussian Probability Model">
                 <figcaption>
                     Figure 1: Example of a Gaussian probability model and the real data it represents. The distributions
@@ -265,7 +265,7 @@
                     <u>non-uniformly distributed</u>.
                 </p>
                 <figure>
-                    <img src="/img/ssrans/histogram_archetype.png" title="Archetypical Histograms"
+                    <img src="img/ssrans/histogram_archetype.png" title="Archetypical Histograms"
                         alt="Archetypical Histograms">
                     <figcaption>
                         Figure 2: Archetypical symbol probability distributions for dense and sparse data. Dense is
@@ -522,7 +522,7 @@ def decompress(x):
                 SSrANS:
             </p>
             <figure>
-                <img src="/img/ssrans/ssrans_compression_ratio.png" title="Compression Ratio Comparison"
+                <img src="img/ssrans/ssrans_compression_ratio.png" title="Compression Ratio Comparison"
                     alt="Compression Ratio Comparison">
                 <figcaption>
                     Figure 4: Comparison of the same data being compressed under SSrANS, vanilla rANS and bitmaps.
