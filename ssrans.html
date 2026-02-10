@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LLM Inference Optimization Proposals</title>
-    <link rel="stylesheet" href="style.css">
-    <script defer src="common.js"></script>
+    <link rel="stylesheet" href="/style.css">
+    <script defer src="/common.js"></script>
 </head>
 
 <body>
     <header>
         <div class="container">
-            <a href="index.html" class="back-link">← Back to Home</a>
+            <a href="/" class="back-link">← Back to Home</a>
         </div>
     </header>
 
@@ -40,7 +40,7 @@
             </p>
             <p>
                 However, existing compression formats for sparse data are <u>not efficient on vector processors</u>. As
-                explained in <a href="prereq.html">Prerequisite Concepts</a>, coalesable memory reads are essential for
+                explained in <a href="/prereq.html">Prerequisite Concepts</a>, coalesable memory reads are essential for
                 fast performance, but existing formats for sparse data, such as bitmaps, have performance limitations on
                 wide vector processors.
             </p>
@@ -123,7 +123,7 @@
             <p>
                 The core of the algorithm is that each symbol, depending on its frequency, is assigned a <u>range</u> or
                 a <u>slot</u> in the state variable. Frequent symbols have large ranges (and consume fewer bits) and
-                infrequent symbols have small ranges (and consumer more bits). The frequency tables thus have the role
+                infrequent symbols have small ranges (and consume more bits). The frequency tables thus have the role
                 of <u>allocating bits to symbols</u>.
             </p>
             <h4>Compression Procedure</h4>
@@ -156,7 +156,7 @@
                 <strong>Auxilliary Data</strong>
                 <p>
                     The three tables here: $\text{freq}[s_t]$, $\text{cfreq}[s_t]$ and $\text{inv\_cfreq}[slot]$ can be
-                    seen as <u>auxilliary data</u>, i.e. side-data that needs to be loaded in addiiton to the actual
+                    seen as <u>auxilliary data</u>, i.e. side-data that needs to be loaded in addition to the actual
                     data-streams/state variables for the algorithm to function.
                 </p>
                 <p>
@@ -193,7 +193,7 @@
                     computed functions</u>.
             </p>
             <figure>
-                <img src="img/ssrans/gaussian_diagram.png" title="Example Gaussian Probability Model"
+                <img src="/img/ssrans/gaussian_diagram.png" title="Example Gaussian Probability Model"
                     alt="Example Gaussian Probability Model">
                 <figcaption>
                     Figure 1: Example of a Gaussian probability model and the real data it represents. The distributions
@@ -207,8 +207,8 @@
             </p>
             <p>
                 This creates a very lucrative optimization for rANS: If we can replace table lookups with computed
-                functions of a probability model, we have eliminated a significant source of irregular memory accesses.
-                This helps us <u>satisfy all 4 requirements</u> I listed in the previous section.
+                functions from a probability model, we have eliminated a significant source of irregular memory
+                accesses. This helps us <u>satisfy all 4 requirements</u> I listed in the previous section.
             </p>
 
             <div class="callout aside">
@@ -226,7 +226,7 @@
                     we include in the probability model.
                 </p>
                 <p>
-                    This is relevant to use because we will now create a probability model for sparse data. Even if the
+                    This is relevant to us because we will now create a probability model for sparse data. Even if the
                     real data has multiple structural facts, we know that sparsity is one of them. So, all we need to do
                     is to <u>model sparsity</u> and we will <i>still</i> enjoy considerable compression, even if there
                     are other facts we have left on the table.
@@ -265,7 +265,7 @@
                     <u>non-uniformly distributed</u>.
                 </p>
                 <figure>
-                    <img src="img/ssrans/histogram_archetype.png" title="Archetypical Histograms"
+                    <img src="/img/ssrans/histogram_archetype.png" title="Archetypical Histograms"
                         alt="Archetypical Histograms">
                     <figcaption>
                         Figure 2: Archetypical symbol probability distributions for dense and sparse data. Dense is
@@ -408,7 +408,7 @@ def decompress(x):
             <ul>
                 <li>It optimally models sparsity without a 1 bit-per-symbol ceiling (unlike bitmaps)</li>
                 <li>When vectorized, each thread runs these procedures independently with no global
-                    instructions like <code>popcnt</code> or inter-thread communication</li>
+                    operations like prefix-sum or inter-thread communication</li>
                 <li>It has only one memory read (when reading the data-stream in compression, or the state variables in
                     decompression). This read can be coalesced across threads.</li>
                 <li>It has only short branches that can be implemented using predicated instructions or masks</li>
@@ -522,7 +522,7 @@ def decompress(x):
                 SSrANS:
             </p>
             <figure>
-                <img src="img/ssrans/ssrans_compression_ratio.png" title="Compression Ratio Comparison"
+                <img src="/img/ssrans/ssrans_compression_ratio.png" title="Compression Ratio Comparison"
                     alt="Compression Ratio Comparison">
                 <figcaption>
                     Figure 4: Comparison of the same data being compressed under SSrANS, vanilla rANS and bitmaps.

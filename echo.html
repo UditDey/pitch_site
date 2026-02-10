@@ -119,7 +119,7 @@
                 banks to do <u>fan-out data transport</u>, i.e. <u>broadcast</u>. This significantly reduces the amount
                 of serialization that takes place, since if two read-ports want the same address, the data can be
                 replicated in the MIN, and broadcast to all requesting ports. A significant number of read-ports can
-                recieve their data in parallel.
+                receive their data in parallel.
             </p>
             <p>
                 Hence, both problems mentioned in the previous section have been addressed.
@@ -165,8 +165,8 @@
 
             <p>
                 This presents an issue: if some packets are dropped in the control phase, those read ports will never
-                recieve their data. To solve this, we include <u>retry logic</u>, that sees which read ports finally
-                recieve valid data, and selectively re-issues the rest back into the control network.
+                receive their data. To solve this, we include <u>retry logic</u>, that sees which read ports finally
+                receive valid data, and selectively re-issues the rest back into the control network.
             </p>
             <p>
                 This is a form of serialization (hence why I mentioned that serialization is reduced, and not
@@ -193,7 +193,7 @@
                 <p>
                     This is designed for gather, not scatter. So we assume that the number of write ports needed is
                     small, and a regular bus/crossbar connection for the write side of things is feasible. Its only for
-                    the hundreds of read-ports that we ned MINs.
+                    the hundreds of read-ports that we need MINs.
                 </p>
                 <p>
                     In LLM codebook decompression, this tracks. We dereference indices <i>far</i> more frequently than
