@@ -109,16 +109,21 @@
                     A full explanation of ANS is out of scope of this article. I refer the reader to:
                 </p>
                 <ol>
-                    <li><a
-                            href="https://kedartatwawadi.github.io/post--ANS/">https://kedartatwawadi.github.io/post--ANS/</a>
+                    <li><a href="https://kedartatwawadi.github.io/post--ANS/">What is Asymmetric Numeral Systems?</a>
                     </li>
-                    <li><a
-                            href="https://fastcompression.blogspot.com/2013/12/finite-state-entropy-new-breed-of.html">https://fastcompression.blogspot.com/2013/12/finite-state-entropy-new-breed-of.html</a>
+                    <li><a href="https://arxiv.org/abs/2001.09186">A tutorial on the range variant of asymmetric numeral
+                            systems</a></li>
+                    <li><a href="https://fastcompression.blogspot.com/2013/12/finite-state-entropy-new-breed-of.html">Finite
+                            State Entropy - A new breed of entropy coder</a>
                     </li>
-                    <li>TODO: more</li>
+                    <li><a href="https://fgiesen.wordpress.com/2014/02/02/rans-notes/">Fabian Giesen's notes on rANS</a>
+                    </li>
+                    <li><a href="https://cbloomrants.blogspot.com/2014/02/02-18-14-understanding-ans-conclusion.html">cbloomrants'
+                            collection of blog posts on ANS</a>
+                    </li>
                 </ol>
                 <p>
-                    Its worth mentioning that the second link is Yann Collet's blog, the creator of <code>zstd</code>.
+                    Its worth mentioning that the third link is Yann Collet's blog, the creator of <code>zstd</code>.
                 </p>
             </div>
 
@@ -564,7 +569,8 @@ def decompress(x):
                 <img src="img/ssrans/ssrans_compression_ratio.png" title="Compression Ratio Comparison"
                     alt="Compression Ratio Comparison">
                 <figcaption>
-                    Figure 5: Comparison of the same data being compressed under SSrANS, vanilla rANS and bitmaps.
+                    Figure 5: Comparison of the same data being compressed under SSrANS, vanilla rANS and bitmaps. At
+                    high sparsity, bitmaps provide suboptimal compression ratio.
                 </figcaption>
             </figure>
             <p>
