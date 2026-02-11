@@ -25,6 +25,27 @@
         loadCSS('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css');
         await loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js');
         await loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js');
+
+        // Inject overrides after KaTeX CSS loads
+        const overrides = document.createElement('style');
+        overrides.textContent = `
+            /* Inline math */
+            .katex {
+                font-size: 1.09em;
+            }
+            /* Block math */
+            .katex-display .katex {
+                font-size: 1.22em;
+            }
+            .katex-display {
+                margin: 1.875rem 0;
+                padding: 0.5rem 0;
+                overflow-x: auto;
+                overflow-y: hidden;
+            }
+        `;
+        document.head.appendChild(overrides);
+
         renderMathInElement(document.body, {
             delimiters: [
                 { left: '$$', right: '$$', display: true },
@@ -59,8 +80,8 @@
         overrides.textContent = `
             code[class*="language-"],
             pre[class*="language-"] {
-                font-size: 0.8rem;
-                line-height: 1.5;
+                font-size: 0.75rem;
+                line-height: 1.4;
             }
         `;
         document.head.appendChild(overrides);

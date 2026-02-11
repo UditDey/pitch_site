@@ -345,30 +345,20 @@
             <div class="callout conclusion">
                 <strong>Definition: Sparsity</strong>
                 <p>
-                    Define sparsity $S$ as the ratio of probability of finding a $\varnothing$ symbol vs finding a
-                    $\text{non-}\varnothing$ symbol:
+                    Define sparsity $S$ as the ratio of $\varnothing$ symbols to total symbols:
                 </p>
-                $$ S = \frac{F(\varnothing)}{(N-1) F(\text{non-}\varnothing)} $$
+                $$ S = \frac{F(\varnothing)}{M} $$
+                <p>So if $S = 0.6$, it means that 60% of the symbols are $\varnothing$.</p>
             </div>
 
             <p>Using the above formulas for $M$ and $S$, we can solve to get:</p>
             $$
-            F(\varnothing) = M \left( \frac{S}{S+1} \right) \\[3ex]
-            F(\text{non-}\varnothing) = \frac{M}{(N-1)(S+1)}
+            F(\varnothing) = M \cdot S \\[3ex]
+            F(\text{non-}\varnothing) = \frac{M(1-S)}{(N-1)}
             $$
 
             <strong>This completes the probability model for sparse data.</strong>
             <p>Given $M$, $N$ and $S$, we now have formulas to calculate the frequency of each symbol.</p>
-
-            <div class="callout aside">
-                <strong>Percentage Sparsity</strong>
-                <p>
-                    Note that the above definition of $S$ is a probabilistic definition. This suits our needs but
-                    colloquially, sparsity is written as the percentage of $\varnothing$ symbols:
-                    $$ S_{\text{percent}} = \frac{F(\varnothing)}{M} \times 100 \% $$
-                </p>
-                <p>I will use "percentage-sparsity" to refer to this definition.</p>
-            </div>
 
             <h2>Sparsity-Specialized rANS</h2>
             <p>
@@ -404,8 +394,8 @@ M = ...
 N = ...
 S = ...
 
-F_ZERO = (M * S) // (S + 1)
-F_NON_ZERO = M // ((N - 1) * (S + 1))
+F_ZERO = (M * S)
+F_NON_ZERO = (M * (1 - S)) // (N - 1)
 
 
 # Probability model functions
@@ -555,7 +545,7 @@ def decompress(x):
                 The SSrANS and vanilla rANS CUDA kernels look almost identical, but the difference can be seen clearly
                 when comparing the <a href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/ptx">kernels'
                     PTX code</a>. The SSrANS kernel is significantly smaller because in addition to removing the three
-                <code>ld.shared.u32</code> instructions, we've also gotten rid of the address calculations. SSrANS has a
+                <code>ld.shared</code> instructions, we've also gotten rid of the address calculations. SSrANS has a
                 clear performance advantage even aside from the bank-conflict and uncoalescable reads problem.
             </p>
             <p>
@@ -601,8 +591,11 @@ def decompress(x):
 
     <footer>
         <div class="container">
-            <p><a href="mailto:your.email@example.com">your.email@example.com</a> · <a
-                    href="https://linkedin.com/in/yourprofile">LinkedIn</a></p>
+            <a href="index.html" class="back-link">← Back to Home</a>
+            <p>
+                <a href="mailto:you@example.com">Email</a> ·
+                <a href="https://linkedin.com/in/you">LinkedIn</a>
+            </p>
         </div>
     </footer>
 </body>

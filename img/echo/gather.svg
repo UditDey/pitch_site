@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 328" width="560" height="328">
+  <style>
+    .boundary { fill: none; stroke: #000; stroke-width: 1.2; }
+    .cell { fill: none; stroke: #000; stroke-width: 1; }
+    .cell-idle { fill: none; stroke: #000; stroke-width: 1; opacity: 0.25; }
+    .line { fill: none; stroke: #000; stroke-width: 1.2; }
+    .node { fill: #000; }
+    .node-idle { fill: #000; opacity: 0.25; }
+    .cell-text { font-family: monospace; font-size: 13px; fill: #000; }
+    .cell-text-idle { font-family: monospace; font-size: 13px; fill: #000; opacity: 0.25; }
+    .box-label { font-family: system-ui, -apple-system, sans-serif; font-size: 16px; fill: #000; font-weight: bold; }
+  </style>
+  <text class="box-label" x="98" y="63.0" text-anchor="end">Storage</text>
+  <rect class="boundary" x="110" y="30" width="420" height="56" rx="4"/>
+  <g id="stor-cells">
+    <rect class="cell" x="120" y="40" width="50" height="36" rx="3"/>
+    <text class="cell-text" x="145.0" y="63.0" text-anchor="middle">A0</text>
+    <rect class="cell-idle" x="170" y="40" width="50" height="36" rx="3"/>
+    <text class="cell-text-idle" x="195.0" y="63.0" text-anchor="middle">B1</text>
+    <rect class="cell" x="220" y="40" width="50" height="36" rx="3"/>
+    <text class="cell-text" x="245.0" y="63.0" text-anchor="middle">C2</text>
+    <rect class="cell-idle" x="270" y="40" width="50" height="36" rx="3"/>
+    <text class="cell-text-idle" x="295.0" y="63.0" text-anchor="middle">D3</text>
+    <rect class="cell-idle" x="320" y="40" width="50" height="36" rx="3"/>
+    <text class="cell-text-idle" x="345.0" y="63.0" text-anchor="middle">E4</text>
+    <rect class="cell-idle" x="370" y="40" width="50" height="36" rx="3"/>
+    <text class="cell-text-idle" x="395.0" y="63.0" text-anchor="middle">F5</text>
+    <rect class="cell" x="420" y="40" width="50" height="36" rx="3"/>
+    <text class="cell-text" x="445.0" y="63.0" text-anchor="middle">G6</text>
+    <rect class="cell-idle" x="470" y="40" width="50" height="36" rx="3"/>
+    <text class="cell-text-idle" x="495.0" y="63.0" text-anchor="middle">H7</text>
+  </g>
+  <g id="stor-output-nodes">
+    <circle class="node" cx="145.0" cy="86" r="4"/>
+    <circle class="node-idle" cx="195.0" cy="86" r="4"/>
+    <circle class="node" cx="245.0" cy="86" r="4"/>
+    <circle class="node-idle" cx="295.0" cy="86" r="4"/>
+    <circle class="node-idle" cx="345.0" cy="86" r="4"/>
+    <circle class="node-idle" cx="395.0" cy="86" r="4"/>
+    <circle class="node" cx="445.0" cy="86" r="4"/>
+    <circle class="node-idle" cx="495.0" cy="86" r="4"/>
+  </g>
+  <text class="box-label" x="198.0" y="209.0" text-anchor="end">Addresses</text>
+  <rect class="boundary" x="210.0" y="176" width="220" height="56" rx="4"/>
+  <g id="addr-input-nodes">
+    <circle class="node" cx="245.0" cy="176" r="4"/>
+    <circle class="node" cx="295.0" cy="176" r="4"/>
+    <circle class="node" cx="345.0" cy="176" r="4"/>
+    <circle class="node" cx="395.0" cy="176" r="4"/>
+  </g>
+  <g id="addr-cells">
+    <rect class="cell" x="220.0" y="186" width="50" height="36" rx="3"/>
+    <text class="cell-text" x="245.0" y="209.0" text-anchor="middle">0x00</text>
+    <rect class="cell" x="270.0" y="186" width="50" height="36" rx="3"/>
+    <text class="cell-text" x="295.0" y="209.0" text-anchor="middle">0x02</text>
+    <rect class="cell" x="320.0" y="186" width="50" height="36" rx="3"/>
+    <text class="cell-text" x="345.0" y="209.0" text-anchor="middle">0x02</text>
+    <rect class="cell" x="370.0" y="186" width="50" height="36" rx="3"/>
+    <text class="cell-text" x="395.0" y="209.0" text-anchor="middle">0x06</text>
+  </g>
+  <text class="box-label" x="198.0" y="275.0" text-anchor="end">Result</text>
+  <rect class="boundary" x="210.0" y="242" width="220" height="56" rx="4"/>
+  <g id="res-cells">
+    <rect class="cell" x="220.0" y="252" width="50" height="36" rx="3"/>
+    <text class="cell-text" x="245.0" y="275.0" text-anchor="middle">A0</text>
+    <rect class="cell" x="270.0" y="252" width="50" height="36" rx="3"/>
+    <text class="cell-text" x="295.0" y="275.0" text-anchor="middle">C2</text>
+    <rect class="cell" x="320.0" y="252" width="50" height="36" rx="3"/>
+    <text class="cell-text" x="345.0" y="275.0" text-anchor="middle">C2</text>
+    <rect class="cell" x="370.0" y="252" width="50" height="36" rx="3"/>
+    <text class="cell-text" x="395.0" y="275.0" text-anchor="middle">G6</text>
+  </g>
+  <g id="stor-to-addr-wires" opacity="0.6">
+    <path class="line" d="M145.0,90 L245.0,172"/>
+    <path class="line" d="M245.0,90 L295.0,172"/>
+    <path class="line" d="M245.0,90 L345.0,172"/>
+    <path class="line" d="M445.0,90 L395.0,172"/>
+  </g>
+</svg>

@@ -14,7 +14,7 @@
 :root {
     --color-bg: #f0f0f0;
     --color-bg-alt: #e6e6e4;
-    --color-text: #222222;
+    --color-text: #444444;
     --color-text-muted: #666666;
     --color-border: #dcdcda;
     --color-link: #145a88;
@@ -46,8 +46,8 @@ html {
 
 body {
     font-family: var(--font-serif);
-    font-size: 1.125rem;
-    line-height: 1.7;
+    font-size: 1.02rem;
+    line-height: 1.6;
     color: var(--color-text);
     background-color: var(--color-bg);
     -webkit-font-smoothing: antialiased;
@@ -322,16 +322,7 @@ pre {
 /* Prism font overrides are in common.js (injected after Prism loads) */
 
 /* ===== MATH ===== */
-.katex {
-    font-size: 1.05em;
-}
-
-.katex-display {
-    margin: calc(var(--spacing-unit) * 1.25) 0;
-    padding: 0.5rem 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-}
+/* KaTeX overrides are in common.js (injected after KaTeX loads) */
 
 /* ===== FOOTER ===== */
 footer {
@@ -353,6 +344,12 @@ footer a {
 
 footer a:hover {
     color: var(--color-link-hover);
+}
+
+footer .back-link {
+    display: block;
+    text-align: left;
+    margin-bottom: 0.75rem;
 }
 
 /* ===== UTILITY ===== */

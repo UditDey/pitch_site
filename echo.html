@@ -23,8 +23,8 @@
 
             <h2>The Problem</h2>
             <p>
-                As discussed in <a href="prereq.html">Prerequisite Concepts</a>, inference on codebook compressed
-                LLMs requires reconstructing (i.e. decompressing) the weight matrices like so:
+                As discussed in <a href="prereq.html#codebook_compression">Prerequisite Concepts</a>, inference on
+                codebook compressed 1LLMs requires reconstructing (i.e. decompressing) the weight matrices like so:
             <pre><code class="language-python">for idx in indices:
     weight_group = codebook[idx]</code></pre>
 
@@ -35,8 +35,15 @@
                 This makes things particularly worse for vector processors. If we try to parallelize
                 this decompression on a vector processor, each thread could end up with a different <code>idx</code>.
                 This is a <u>gather</u> operation and read-coalescion is impossible.
-                <br> TODO: Image of gather op
             </p>
+            <figure>
+                <img src="img/echo/gather.svg" title="Example Gather Operation" alt="Example Gather Operation">
+                <figcaption>
+                    FIgure 1: Example gather operation. There are four readers who's addresses need to be dereferenced
+                    in parallel. Note that two of the readers here issue the same address and the data needs to be
+                    "multicasted".
+                </figcaption>
+            </figure>
             <p>
                 This means that despite significant reductions in weight size, codebook compression methods can be
                 slower than their uncompressed counterparts when implemented with regular CUDA kernels. Since the rest
@@ -83,21 +90,47 @@
 
             <h2>Interconnection Network</h2>
             <p>
-                Following what was introduced in <a href="prereq.html">Prerequisite Concepts</a>, we could consider a
-                crossbar to solve problem 1. But the obstacle is the complexity of the crossbar when we have potentially
-                hundreds of virtual read-ports. A crossbar could be completely infeasible due to <u>long
+                Following what was introduced in <a href="prereq.html#mins">Prerequisite Concepts</a>, we could consider
+                a crossbar to solve problem 1. But the obstacle is the complexity of the crossbar when we have
+                potentially hundreds of virtual read-ports. A crossbar could be completely infeasible due to <u>long
                     wires</u> and <u>extreme routing congestion</u>.
             </p>
             <p>
-                We should instead consider MINs. This brings its own set of complexities, mainly that <u>figuring out
-                    the switch settings</u> to achieve a desired routing in a MIN is a <u>non-trivial task</u>. Some
-                MINs (like Beneš Networks) are very powerful, but require complex algorithms to calculate switch
-                settings, making them impractical for our purpose.
+                We should instead consider Multistage Interconnection Networks (MINs). MINs have $O(log \ N)$
+                complexity,
+                as opposed to crossbars' $O(N^2)$, making it more suitable for hundreds of read-ports.
             </p>
             <p>
-                Here, I identify that a certain type of MINs, known as <u>self-routing MINs</u>, can be used to create
-                an interconnect. As far as I'm aware, using self-routing MINs in this manner is entirely novel.
+                However, MINs bring their own set of complexities, mainly that <u>figuring out the switch settings</u>
+                to achieve a desired routing in a MIN is a <u>non-trivial task</u>. Some MINs (like Beneš Networks) are
+                very powerful, but require complex routing algorithms to calculate switch settings, making them
+                impractical for our purpose.
             </p>
+            <p>
+                Instead, we will use a class of MINs, known as <u>self-routing MINs</u>, to create the interconnect. In
+                a self-routing MIN, the data packets contain their destination address, and each switch looks at a bit
+                from the address to make its own, entirely <u>local routing decision</u>. No global coordination or
+                complex routing algorithm needed. We simply <u>inject packets</u> at the input, and they <u>find their
+                    own way</u> through the network.
+            </p>
+            <figure>
+                <img src="img/echo/example_min.svg" title="Diagram of a Multistage Interconnect Network"
+                    alt="Diagram of a Multistage Interconnect Network">
+                <figcaption>
+                    Figure 1: General diagram of a Multistage Interconnection Network. There is a grid of switches (the
+                    opaque boxes) connected via some wiring topology (the dashed boxes), and input/output ports on each
+                    side.
+                </figcaption>
+            </figure>
+            <div class="callout aside">
+                <strong>Resources</strong>
+                <p>
+                    MINs can be complex to learn and this article is <i>not</i> the right place to learn about them for
+                    the first time. I will again emphasize that readers should read the <a
+                        href="prereq.html#mins">Prerequisite Concepts</a> page, which also includes a list of resources
+                    to learn about MINs.
+                </p>
+            </div>
 
             <h2>The Echo Cache</h2>
             <p>
@@ -134,21 +167,25 @@
                 </figcaption>
             </figure>
             <p>
-                We use a pair of MINs: the <b>control network</b> and the <b>transfer network</b>. Both are
-                self-routing, so switches make their own local decisions. First, address packets travel from read-ports,
-                throughout the control network. Then, switch states are copied to the transfer network, and data flows
-                from banks back to read-ports following the same paths, except in reverse.
+                It's best to understand the design as a pair of MINs: the <b>control network</b> and the <b>transfer
+                    network</b>. Both are self-routing, and switches make their own local decisions. The control network
+                deals with <u>address packets</u> and the transfer network deals with <u>data packets</u>.
+            </p>
+            <p>
+                First, address packets are injected from the read-ports and make their way through the self-routing
+                control network. Then, switch states are copied to the transfer network, and data packets flows from
+                banks back to read-ports, following the same paths in <i>reverse</i>.
             </p>
             <p>
                 The control network essentially only performs a "dry-run", that the transfer network replays in reverse
-                to transport data packets. This retains the advantage of self-routing MINs: no complex algorithms needs
-                to be used to compute switch states. The control network <i>is</i> the algorithm.
+                to transport data packets. This retains the advantage of self-routing MINs: no complex routing algorithm
+                needs to be used to compute switch states. The control network <i>is</i> the algorithm.
             </p>
             <p>
-                Most self-routing MINs have chances of packet collisions or <u>blocking</u>, i.e. when two packets at a
-                switch input want to both go to the same output wire. In this case, one packet must be <u>dropped</u>.
-                However,if both packets are ultimately going to the same bank, then instead of dropping, both packets
-                can be <u>merged</u>.
+                Now, most self-routing MINs have chances of packet collisions or <u>blocking</u>, i.e. when two packets
+                at a switch input want to both go to the same output wire. In this case, one packet must be
+                <u>dropped</u>. However,if both packets are ultimately going to the same bank, then instead of dropping,
+                both packets can be <u>merged</u>.
             </p>
             <p>
                 On the way down, packets merge and form a fan-in routing. When reversed, packets <u>replicate</u> and
@@ -201,33 +238,46 @@
                 </p>
             </div>
 
+            <p>
+                Lets take the example of a MIN topology that uses a grid of 2x2 switches. The following diagrams explain
+                the different states each switch can be in:
+            </p>
             <figure>
                 <img src="img/echo/switch_states.svg" title="Example States of 2x2 Switch"
-                    alt="Example States of 2x2 Switch">
+                    alt="Example States of 2x2 Switch" style="width: 50%;">
                 <figcaption>
-                    Figure 3: Diagram showing the 4 states of a 2x2 switch to be used in the MIN
+                    Figure 3: The 4 basic states of a 2x2 switch
                 </figcaption>
             </figure>
             <figure>
-                <img src="img/echo/switch_conflict.svg" title="Example Blocking States of a 2x2 Switch">
+                <img src="img/echo/switch_conflict.svg" title="Example Blocking States of a 2x2 Switch"
+                    alt="Example Blocking States of a 2x2 Switch" style="width: 50%;">
                 <figcaption>
-                    Figure 4: Diagram showing the 2 additional packet dropping states when there is contention but
+                    Figure 4: The 2 additional packet dropping states when there is contention but
                     packets cannot be merged. We have a static rule here: the left input packet always loses.
                 </figcaption>
             </figure>
             <figure>
                 <img src="img/echo/switch_bidir.svg" title="Bidirectional Switch Behaviour"
-                    alt="Bidirectional Switch Behaviour">
+                    alt="Bidirectional Switch Behaviour" style="width: 90%;">
                 <figcaption>
                     Figure 5: Interpretation of switch behaviour in forward vs reverse directions. Note that the switch
                     becomes asymmetrical when blocking or merging takes place.
                 </figcaption>
             </figure>
+            <p>
+                Figure 5 demonstrates switch behaviour in both directions. For example, let's say a switch in the
+                control network decides on the "left-merge" state, i.e. it merges two address packets and forwards them
+                to the left output. Then in the transfer network, the corresponding switch will operate in
+                <i>reverse</i>, i.e. it will duplicate a data packet, enabling multicast behaviour.
+            </p>
 
             <h2>Verilog Sample</h2>
             <p>
-                I developed a proof-of-concept RTL implementation of the Echo Cache which can be found <a
-                    href="rtl.html">here</a>. It utilizes $2 \times 2$ switches with the omega network topology, the
+                I developed a proof-of-concept RTL implementation of the Echo Cache which <a style="white-space: nowrap"
+                    href="https://github.com/UditDey/pitch_site/blob/main/code/echo">can be
+                    found here</a>. It utilizes $2 \times 2$ switches with the <a
+                    href="https://en.wikipedia.org/wiki/Omega_network">omega network</a> topology, the
                 simplest self-routing MIN.
             </p>
             <p>
@@ -237,7 +287,26 @@
                 reverse.
             </p>
 
-            <pre><code class="language-verilog">module ctrl_switch #(
+            <pre><code class="language-verilog">// ****************** Packet Layouts ******************
+// Address Packet: {valid, addr}                      *
+// Data Packet:    {valid, data}                      *
+//                                                    *
+// RULE: When valid = 0, data/addr = 0 as well        *
+// ****************************************************
+
+
+
+// ****************** Control Switch ******************
+// Input Packets:  in0,  in1                          *
+// Output Packets: out0, out1                         *
+//                                                    *
+// Routing decision stored in: did_swap, did_merge:   *
+// 1) (0, 0): Passthru                                *
+// 2) (1, 0): Swap                                    *
+// 3) (0, 1): Merge left                              *
+// 4) (1, 1): Merge Right                             *
+// ****************************************************
+module ctrl_switch #(
     parameter ADDR_WIDTH = 3,
     parameter STAGE_BIT  = 0
 ) (
@@ -249,16 +318,11 @@
     output reg  [ADDR_WIDTH:0] out1,
     output reg                 did_swap,
     output reg                 did_merge
-);
-    // Control packet format: {valid, addr}
-    // Switch states are defined by (did_swap, did_merge):
-    // 1) (0, 0): Passthru
-    // 2) (1, 0): Swap
-    // 3) (0, 1): Merge left
-    // 4) (1, 1): Merge Right
+);    
     localparam PKT_WIDTH = ADDR_WIDTH + 1;
     localparam [PKT_WIDTH-1:0] ZERO_PKT = {PKT_WIDTH{1'b0}};
 
+    // Read packets
     wire in0_valid       = in0[PKT_WIDTH-1];
     wire in0_wants_right = in0[STAGE_BIT];
     wire in1_valid       = in1[PKT_WIDTH-1];
@@ -283,6 +347,7 @@
     wire [ADDR_WIDTH:0] final_out0 = kill0 ? ZERO_PKT : xbar0;
     wire [ADDR_WIDTH:0] final_out1 = kill1 ? ZERO_PKT : xbar1;
 
+    // Register outputs
     always @(posedge clk) begin
         if (rst) begin
             out0      <= ZERO_PKT;
@@ -299,6 +364,13 @@
 endmodule
 
 
+// ****************** Transfer Switch ******************
+// Input Packets:  in0,  in1                           *
+// Output Packets: out0, out1                          *
+//                                                     *
+// Switch takes decision from (did_swap, did_merge)    *
+// inputs, and follows them in reverse                 *
+// *****************************************************
 module xfer_switch #(
     parameter DATA_WIDTH = 8,
     parameter STAGE_BIT  = 0
@@ -312,8 +384,6 @@ module xfer_switch #(
     output reg  [DATA_WIDTH:0] out0,
     output reg  [DATA_WIDTH:0] out1
 );
-    // Transfer packet format: {valid, data}
-    // ADDITIONAL CONSTRAINT: when valid == 0, then data == 0
     localparam PKT_WIDTH = DATA_WIDTH + 1;
     localparam [PKT_WIDTH-1:0] ZERO_PKT = {PKT_WIDTH{1'b0}};
 
@@ -322,13 +392,11 @@ module xfer_switch #(
     wire [DATA_WIDTH:0] xbar1 = did_swap ? in0 : in1;
     
     // Merge case: Choose the valid packet to multicast
-    // OR'ing works because if merge was done in control phase, then one input here must
-    // necessarily have valid == 0 and addr == 0
     wire [DATA_WIDTH:0] merge_chosen = in0 | in1;
-    
     wire [DATA_WIDTH:0] final_out0 = did_merge ? merge_chosen : xbar0;
     wire [DATA_WIDTH:0] final_out1 = did_merge ? merge_chosen : xbar1;
 
+    // Register outputs
     always @(posedge clk) begin
         if (rst) begin
             out0 <= ZERO_PKT;
@@ -340,14 +408,262 @@ module xfer_switch #(
     end
 endmodule</code></pre>
 
+            <br>
+            <p>
+                In the omega network topology, layers of switches are connected via the <u>perfect shuffle</u> wiring
+                pattern. Accordingly, when tracing in reverse, the transfer network uses the <u>inverse perfect
+                    shuffle</u>.
+            </p>
+            <pre><code class="language-verilog">module perfect_shuffle #(
+    parameter N         = 8,
+    parameter PKT_WIDTH = 4
+) (
+    input  wire [N*PKT_WIDTH-1:0] in_pkts,
+    output wire [N*PKT_WIDTH-1:0] out_pkts
+);
+    localparam LOG_N = $clog2(N);
+
+    genvar i;
+    generate
+        for (i = 0; i < N; i = i + 1) begin : shuffle
+            localparam integer j = ((i << 1) & (N - 1)) | (i >> (LOG_N - 1));
+
+            assign out_pkts[j*PKT_WIDTH +: PKT_WIDTH] = in_pkts[i*PKT_WIDTH +: PKT_WIDTH];
+        end
+    endgenerate
+endmodule
+
+
+module inverse_perfect_shuffle #(
+    parameter N         = 8,
+    parameter PKT_WIDTH = 4
+) (
+    input  wire [N*PKT_WIDTH-1:0] in_pkts,
+    output wire [N*PKT_WIDTH-1:0] out_pkts
+);
+    localparam LOG_N = $clog2(N);
+
+    genvar i;
+    generate
+        for (i = 0; i < N; i = i + 1) begin : unshuffle
+            localparam integer j = (i >> 1) | ((i & 1) << (LOG_N - 1));
+
+            assign out_pkts[j*PKT_WIDTH +: PKT_WIDTH] = in_pkts[i*PKT_WIDTH +: PKT_WIDTH];
+        end
+    endgenerate
+endmodule</code></pre>
+
+            <br>
+            <p>Finally, the network modules can be formed like so:</p>
+            <pre><code class="language-verilog">module ctrl_layer #(
+    parameter N          = 8,
+    parameter ADDR_WIDTH = 3,
+    parameter STAGE_BIT  = 0
+) (
+    input  wire clk,
+    input  wire rst,
+    input  wire [N*(ADDR_WIDTH+1)-1:0] in_pkts,
+    output wire [N*(ADDR_WIDTH+1)-1:0] out_pkts,
+    output wire [(N/2)-1:0]            did_swaps,
+    output wire [(N/2)-1:0]            did_merges
+);
+    localparam PKT_WIDTH = ADDR_WIDTH + 1;
+
+    genvar i;
+    generate
+        wire [N*PKT_WIDTH-1:0] sh_pkts;
+
+        perfect_shuffle #(
+            .N(N),
+            .PKT_WIDTH(PKT_WIDTH)
+        ) shuffle (
+            .in_pkts(in_pkts),
+            .out_pkts(sh_pkts)
+        );
+
+        for (i = 0; i < N/2; i = i + 1) begin : sw        
+            ctrl_switch #(
+                .ADDR_WIDTH(ADDR_WIDTH),
+                .STAGE_BIT(STAGE_BIT)
+            ) switch (
+                .clk(clk),
+                .rst(rst),
+                .in0 (sh_pkts [(2*i  ) * PKT_WIDTH +: PKT_WIDTH]),
+                .in1 (sh_pkts [(2*i+1) * PKT_WIDTH +: PKT_WIDTH]),
+                .out0(out_pkts[(2*i  ) * PKT_WIDTH +: PKT_WIDTH]),
+                .out1(out_pkts[(2*i+1) * PKT_WIDTH +: PKT_WIDTH]),
+                .did_swap(did_swaps[i]),
+                .did_merge(did_merges[i])
+            );
+        end
+    endgenerate
+endmodule
+
+
+module xfer_layer #(
+    parameter N          = 8,
+    parameter DATA_WIDTH = 3,
+    parameter STAGE_BIT  = 0
+) (
+    input  wire clk,
+    input  wire rst,
+    input  wire [N*(DATA_WIDTH+1)-1:0] in_pkts,
+    input  wire [(N/2)-1:0]            did_swaps,
+    input  wire [(N/2)-1:0]            did_merges,
+    output wire [N*(DATA_WIDTH+1)-1:0] out_pkts
+);
+    localparam PKT_WIDTH = DATA_WIDTH + 1;
+
+    genvar i;
+    generate
+        wire [N*PKT_WIDTH-1:0] tmp_pkts;
+
+        for (i = 0; i < N/2; i = i + 1) begin : sw        
+            xfer_switch #(
+                .DATA_WIDTH(DATA_WIDTH),
+                .STAGE_BIT(STAGE_BIT)
+            ) switch (
+                .clk(clk),
+                .rst(rst),
+                .in0 (in_pkts [(2*i  ) * PKT_WIDTH +: PKT_WIDTH]),
+                .in1 (in_pkts [(2*i+1) * PKT_WIDTH +: PKT_WIDTH]),
+                .did_swap(did_swaps[i]),
+                .did_merge(did_merges[i]),
+                .out0(tmp_pkts[(2*i  ) * PKT_WIDTH +: PKT_WIDTH]),
+                .out1(tmp_pkts[(2*i+1) * PKT_WIDTH +: PKT_WIDTH])
+            );
+        end
+
+        inverse_perfect_shuffle #(
+            .N(N),
+            .PKT_WIDTH(PKT_WIDTH)
+        ) shuffle (
+            .in_pkts(tmp_pkts),
+            .out_pkts(out_pkts)
+        );
+    endgenerate
+endmodule
+
+
+module ctrl_network #(
+    parameter N = 8
+) (
+    input  wire                   clk,
+    input  wire                   rst,
+    input  wire [N-1:0]           req_valids,
+    input  wire [N*$clog2(N)-1:0] addrs,
+    output wire [N*($clog2(N)+1)-1:0]     out_pkts,
+    output wire [((N/2) * $clog2(N))-1:0] did_swaps,
+    output wire [((N/2) * $clog2(N))-1:0] did_merges
+);
+    localparam ADDR_WIDTH = $clog2(N);
+    localparam NUM_STAGES = $clog2(N);
+    localparam PKT_WIDTH  = ADDR_WIDTH + 1;
+
+    // Expand addresses into packets: {valid, addr}
+    wire [N*PKT_WIDTH-1:0] in_pkts;
+    genvar p;
+    generate
+        for (p = 0; p < N; p = p + 1) begin : expand
+            // Use the external valid signal instead of hardcoded 1'b1
+            assign in_pkts[p*PKT_WIDTH +: PKT_WIDTH] = 
+                {req_valids[p], addrs[p*ADDR_WIDTH +: ADDR_WIDTH]};
+        end
+    endgenerate
+
+    // Inter-stage packet wires
+    wire [N*PKT_WIDTH-1:0] stage_pkts [0:NUM_STAGES];
+    assign stage_pkts[0] = in_pkts;
+
+    // Instantiate stages (MSB routed first)
+    genvar s;
+    generate
+        for (s = 0; s < NUM_STAGES; s = s + 1) begin : stage
+            ctrl_layer #(
+                .N(N),
+                .ADDR_WIDTH(ADDR_WIDTH),
+                .STAGE_BIT(ADDR_WIDTH - 1 - s)
+            ) layer (
+                .clk(clk),
+                .rst(rst),
+                .in_pkts(stage_pkts[s]),
+                .out_pkts(stage_pkts[s+1]),
+                .did_swaps(did_swaps[s*(N/2) +: (N/2)]),
+                .did_merges(did_merges[s*(N/2) +: (N/2)])
+            );
+        end
+    endgenerate
+
+    assign out_pkts = stage_pkts[NUM_STAGES];
+endmodule
+
+
+module xfer_network #(
+    parameter N          = 8,
+    parameter DATA_WIDTH = 16
+) (
+    input  wire                           clk,
+    input  wire                           rst,
+    input  wire [N*DATA_WIDTH-1:0]        tap_ports,
+    input  wire [N*($clog2(N)+1)-1:0]     ctrl_out_pkts,
+    input  wire [((N/2) * $clog2(N))-1:0] did_swaps,
+    input  wire [((N/2) * $clog2(N))-1:0] did_merges,
+    output wire [N*(DATA_WIDTH+1)-1:0]    out_pkts
+);
+    localparam ADDR_WIDTH  = $clog2(N);
+    localparam NUM_STAGES  = $clog2(N);
+    localparam CTRL_PKT_WIDTH = ADDR_WIDTH + 1;
+    localparam PKT_WIDTH   = DATA_WIDTH + 1;
+
+    // Expand tap_ports into packets, using ctrl_out valid bits
+    wire [N*PKT_WIDTH-1:0] in_pkts;
+    genvar p;
+    generate
+        for (p = 0; p < N; p = p + 1) begin : expand
+            wire ctrl_valid = ctrl_out_pkts[(p+1)*CTRL_PKT_WIDTH - 1];
+            assign in_pkts[p*PKT_WIDTH +: PKT_WIDTH] = 
+                ctrl_valid ? {1'b1, tap_ports[p*DATA_WIDTH +: DATA_WIDTH]}
+                           : {PKT_WIDTH{1'b0}};
+        end
+    endgenerate
+
+    // Inter-stage packet wires
+    wire [N*PKT_WIDTH-1:0] stage_pkts [0:NUM_STAGES];
+    assign stage_pkts[0] = in_pkts;
+
+    // Instantiate stages in reverse order
+    genvar s;
+    generate
+        for (s = 0; s < NUM_STAGES; s = s + 1) begin : stage
+            localparam CTRL_STAGE = NUM_STAGES - 1 - s;
+            
+            xfer_layer #(
+                .N(N),
+                .DATA_WIDTH(DATA_WIDTH),
+                .STAGE_BIT(s)
+            ) layer (
+                .clk(clk),
+                .rst(rst),
+                .in_pkts(stage_pkts[s]),
+                .out_pkts(stage_pkts[s+1]),
+                .did_swaps(did_swaps[CTRL_STAGE*(N/2) +: (N/2)]),
+                .did_merges(did_merges[CTRL_STAGE*(N/2) +: (N/2)])
+            );
+        end
+    endgenerate
+
+    assign out_pkts = stage_pkts[NUM_STAGES];
+endmodule</code></pre>
+
             <h2>Conclusion</h2>
             <p>
                 In this article I presented the <b>Echo Cache</b>: a banked, virtual-multiported cache that uses a novel
                 2 phase MIN to route addresses to banks, and then data back to read-ports.
             </p>
             <p>
-                The use of MINs allows for a large number of banks and read-ports without the scalability issues of
-                crossbars.
+                Instead of typical crossbars, I propose using MINs, which have $O(log \ N)$ complexity, as
+                opposed to crossbars' $O(N^2)$. The use of MINs allows for a very large number of virtual read-ports,
+                without scalability issues.
             </p>
             <p>
                 The motivations for this are the wide gather operations that we encounter in LLM codebook compression.
@@ -364,8 +680,11 @@ endmodule</code></pre>
 
     <footer>
         <div class="container">
-            <p><a href="mailto:your.email@example.com">your.email@example.com</a> · <a
-                    href="https://linkedin.com/in/yourprofile">LinkedIn</a></p>
+            <a href="index.html" class="back-link">← Back to Home</a>
+            <p>
+                <a href="mailto:you@example.com">Email</a> ·
+                <a href="https://linkedin.com/in/you">LinkedIn</a>
+            </p>
         </div>
     </footer>
 </body>

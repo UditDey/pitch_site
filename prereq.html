@@ -20,7 +20,7 @@
         <div class="container">
             <h1>Prerequisite Concepts</h1>
 
-            <h2>Vector Processors</h2>
+            <h2 id="vector_processors">Vector Processors</h2>
             <p>This refers to SIMD/SIMT style parallel processors that run <u>multiple threads</u>
                 (or lanes in some contexts) <u>in lockstep</u>. This definition covers:
             <ul>
@@ -47,7 +47,7 @@
             </p>
 
             <div class="dot-break"></div>
-            <h2>LLM Codebook Compression/Quantization</h2>
+            <h2 id="codebook_compression">LLM Codebook Compression/Quantization</h2>
             <p>
                 The idea is simple:
             <ul>
@@ -95,7 +95,7 @@
             </p>
 
             <div class="dot-break"></div>
-            <h2>KV Cache Pruning</h2>
+            <h2 id="kv_pruning">KV Cache Pruning</h2>
             <p>
                 Pruning applied to LLM KV Caches. I refer the reader to: <a
                     href="https://arxiv.org/abs/2505.22913">MUSTAFAR</a>, <a
@@ -105,7 +105,7 @@
             </p>
 
             <div class="dot-break"></div>
-            <h2>Interconnection Networks</h2>
+            <h2 id="mins">Interconnection Networks</h2>
             <p>
                 When we:
             <ul>
@@ -150,22 +150,39 @@
                 <p>
                     MINs are a complex field and an in-depth explanation is out of scope. Here are some external sources
                     that are helpful:
+                </p>
                 <ul>
-                    <li><a
-                            href="https://www.philadelphia.edu.jo/academics/kaubaidy/uploads/ACA-Lect16.pdf">https://www.philadelphia.edu.jo/academics/kaubaidy/uploads/ACA-Lect16.pdf</a>
+                    <li>
+                        <a href="https://www.philadelphia.edu.jo/academics/kaubaidy/uploads/ACA-Lect16.pdf">
+                            Prof. Kasim M. Al-Aubidy's slides on Switch-Based Interconnection Networks
+                        </a>
                     </li>
-                    <li><a
-                            href="https://pnewman.com/papers/thesis/chapter4.pdf">https://pnewman.com/papers/thesis/chapter4.pdf</a>
+                    <li>
+                        <a href="https://www.cse.iitb.ac.in/~cs348/ppts/switching-arch.pdf">
+                            IIT-B CS 348 slides on Switches and Indirect Networks
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://en.wikipedia.org/wiki/Omega_network">
+                            https://en.wikipedia.org/wiki/Omega_network
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://pnewman.com/papers/thesis/chapter4.pdf">
+                            Portion of Peter Newman's PhD thesis that introduces MINs
+                        </a>
                     </li>
                 </ul>
-                </p>
             </div>
     </main>
 
     <footer>
         <div class="container">
-            <p><a href="mailto:your.email@example.com">your.email@example.com</a> · <a
-                    href="https://linkedin.com/in/yourprofile">LinkedIn</a></p>
+            <a href="index.html" class="back-link">← Back to Home</a>
+            <p>
+                <a href="mailto:you@example.com">Email</a> ·
+                <a href="https://linkedin.com/in/you">LinkedIn</a>
+            </p>
         </div>
     </footer>
 </body>
