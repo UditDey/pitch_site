@@ -19,88 +19,134 @@
     <main>
         <div class="container">
             <h1>Sparsity-Specialized rANS Compression</h1>
-            <p class="subtitle">A fast, vector algorithm for compressing unstructured sparse data</p>
+            <p class="subtitle">A fast, vector algorithm for compressing unstructured sparse data with zero cross-lane
+                operations or gathers/scatters</p>
 
             <h2>The Problem</h2>
             <p>
-                This article was inspired by <a href="https://arxiv.org/abs/2505.22913">MUSTAFAR</a>, a KV cache pruning
-                technique that allows us to significantly reduce the memory
-                footprint during LLM inference. By zeroing out a significant number of entries in the KV matrix, we
-                <u>reduce its information content</u> or its <u>Shannon entropy</u>. The resulting low-entropy,
-                <u>sparse matrix</u> can be compressed in memory
+                We start with <a href="https://arxiv.org/abs/2505.22913">MUSTAFAR</a>. The paper proposes a
+                straightforward technique for pruning LLM KV caches, allowing for compression. In order to actually
+                compress the resulting sparse KV matrix, they <a
+                    href="https://github.com/dhjoo98/mustafar/blob/main/kernel/compression.py">built Triton kernels</a>
+                that use a <u>bitmap compression</u> scheme for compactly storing sparse data.
             </p>
             <p>
-                MUSTAFAR is distinct from token-eviction schemes like <a href="https://arxiv.org/abs/2306.14048">H2O</a>
-                because the sparsity it produces is "unstructured". H2O evicts entire tokens, and its compressibility
-                stems from the fact that $Attn(Q, K, V)$ does not care about token ordering. So, instead of zeroing-out
-                rows, we just remove the entire row and get a smaller matrix.
+                KV cache compression is useful. Done well, it can significantly reduce memory footprint, reduce energy
+                consumed in the chip $\leftrightarrow$ HBM link, allow for longer context windows and speed up LLM
+                inference. These are all valuable in the current landscape of scarce memory and skyrocketing data
+                centre power consumption.
             </p>
             <p>
-                But with MUSTAFAR, we have no choice but to deal with a sparse matrix, which has to be compressed on the
-                basis of its low-entropy content, not its smaller size.
+                Also, this is <a href="https://arxiv.org/abs/2102.00554">not the only place</a> where sparse matrices
+                show up in AI. People have pruned everything from weights and activations, to even training gradients
+                for storage and bandwidth savings with acceptable loss in model quality.
             </p>
             <p>
-                Sparse matrices come up in other fields as well. Model <u>weight pruning</u> is the most common example.
+                Bitmaps show up often as a go-to solution for storing sparse data. The general idea is to encode sparse
+                data in a <code>(bitmap, dense_array)</code> pair. The bitmap has one bit for each element, telling us
+                if its zero or not, and the dense array stores the actual values of the non-zeros. This a simple
+                compression scheme and provides decent compression ratios, but it has certain limitations.
             </p>
             <p>
-                To actually exploit these pruning techniques, we need an efficient scheme for compressing
-                unstructured, sparse data. The compression scheme should be fast, well suited for parallel,
-                vector-processors, and provide
-                high compression ratios.
+                First of all, bitmap schemes are <u>information-theoretically suboptimal</u>. At high sparsity, the
+                bitmap scheme takes more bits than what the actual <a
+                    href="https://en.wikipedia.org/wiki/Entropy_(information_theory)">Shannon Entropy</a> dictates,
+                since bitmaps have a 1 bit-per-symbol ceiling. Secondly, vectorized compression and decompression under
+                bitmap schemes requires <u>global, cross-lane operations</u>, namely <u>prefix-sums</u>. As well as
+                large <u>scatter/gather</u> operations. This can result in poor performance on certain AI accelerators,
+                like Google's TPU or AWS's Trainium.
             </p>
 
-            <h2>Existing Compression Schemes</h2>
+            <h2>Vectorized Bitmap Compression</h2>
             <p>
-                Existing schemes for compressing unstructured, sparse data are usually bitmaps or CSR/CSC/COO. This
-                class of compression schemes is defined by storing the data in multiple structures: a dense array
-                storing the non-zero values and some metadata storing the location of zeroes (<a
-                    href="https://en.wikipedia.org/wiki/Sparse_matrix#Storage">see this for more</a>).
+                Consider parallel compression under a bitmap scheme. Each thread/lane is assigned one element in the
+                uncompressed data and together they can form the <code>bitmap</code> by checking if their element is
+                zero or not. But what about <code>dense_array</code>? For each lane that encounters a non-zero, how does
+                it know which index of the dense array to write it in? It clearly depends on how many <i>previous</i>
+                non-zeros exist in the data, i.e. lane $N$ needs to know what lane $N-1$, $N-2$, $N-3$, etc did to know
+                its own index for the <code>dense_array</code>
             </p>
             <p>
-                The MUSTAFAR paper <a href="https://github.com/dhjoo98/mustafar/blob/main/kernel/compression.py">builds
-                    Triton kernels</a> for bitmap based sparse KV cache compression, but their implementation reveals
-                the limitation of the "data + metadata" idea:
+                This is clearly a prefix-sum problem. After forming the <code>bitmap</code>, we need to perform a
+                <code>popcnt</code> and prefix-sum on it to calculate indices into the dense array, and then a
+                <code>scatter</code> to write the data in:
             </p>
-            <ul>
-                <li>They are challenging to parallelize</li>
-                <li>They operate in multiple distinct steps or need multiple kernels</li>
-                <li>They need non-trivial global operations like prefix-sums</li>
-                <li>They issue inefficient, irregular, uncoalescable memory read patterns</li>
-                <li>In general, they have low arithmetic intensity</li>
-            </ul>
+            <figure>
+                <img title="Compressing data with bitmap compression algorithm"
+                    alt="Compressing data with bitmap compression algorithm" src="img/ssrans/bitmap_compression.svg"
+                    style="width: 90%;">
+                <figcaption>Figure 1: General algorithm for compressing sparse data into a
+                    <code>(bitmap, dense_array)</code> pair
+                </figcaption>
+            </figure>
             <p>
-                In addition, "data + metadata" schemes can be <u>information-theoretically suboptimal</u>. Bitmaps for
-                example have a strict 1-bit-per-symbol ceiling, even if the true entropy is $\lt 1$.
+                The same logic is needed for parallel decompression too. Each lane is assigned one bit in the
+                <code>bitmap</code>, <code>popcnt</code> + prefix-sum gives each non-zero lane an index, and then a
+                <code>gather</code> reads the data in from the <code>dense_array</code>:
+            </p>
+            <figure>
+                <img title="Decompressing data with bitmap compression algorithm"
+                    alt="Decompressing data with bitmap compression algorithm" src="img/ssrans/bitmap_decompression.svg"
+                    style="width: 90%;">
+                <figcaption>Figure 2: General algorithm for decompressing sparse data from a
+                    <code>(bitmap, dense_array)</code> pair
+                </figcaption>
+            </figure>
+            <p>
+                The takeaway is: parallel bitmap compression and decompression rely on fast cross-lane operations and
+                scatter/gathers.
             </p>
             <p>
-                Some AI hardware units have direct support for sparse data loading. Apple's Neural Engine <a
-                    href="https://apple.github.io/coremltools/docs-guides/source/opt-pruning-perf.html">seems to support
-                    RLE</a>, but that is only effective if the zeroes are in continuous groups. If the zeroes are
-                uniformly spread, then RLE is ineffective, even though the actual entropy content doesn't care about the
-                location of zeroes.
+                This is acceptable on GPUs, where a small number of threads share fast <code>__shared__</code> memory.
+                But consider dedicated AI accelerators like TPU or Trainium, which are not designed like GPUs. They are
+                divided into Vector Processing Units (VPU) and Matrix Multiply Units (MXU). Any
+                compression/decompression algorithm would run on the VPU and feed from VMEM.
             </p>
             <p>
-                NVIDIA GPUs have support for <a
-                    href="https://developer.nvidia.com/blog/structured-sparsity-in-the-nvidia-ampere-architecture-and-applications-in-search-engines/">2:4
-                    sparsity</a> but that is explicitly a scheme for structured sparsity only. The $0$s must follow a
-                2:4 pattern, but pruning techniques make no guarantee that they will produce such a pattern.
+                Scatter/gathers and prefix-sums on TPU are significantly slower than on GPUs. This is because of
+                fundamental design decisions: TPU VMEM is large (but has fewer read-ports), GPU shared memory is small
+                (but has plenty of read-ports).
             </p>
             <p>
-                Based on the limitations of existing schemes, let's try and devise one with the following properties:
+                This makes powerful techniques like MUSTAFAR difficult to implement on TPU-like hardware. The gains from
+                KV cache compression are offset by the slow bitmap decompression times. The purpose of this article is
+                to address precisely that. I present <b>Sparsity-Specialized rANS (SSrANS)</b>, a compression algorithm
+                for sparse data that has <u>no global cross-lane operations</u> and <u>no gather/scatters</u>. Each lane
+                can operate entirely independently in a "pure SIMD" fashion. It is particularly suitable for pruning
+                techniques like MUSTAFAR, where sparsity is known ahead of time.
             </p>
-            <ul>
-                <li>Be close to information-theoretically optimal</li>
-                <li>Should not use complex, global operations like prefix-sum</li>
-                <li>Should only have regular, coalescable memory reads</li>
-                <li>Should not have long, divergent branching</li>
-            </ul>
+            <div class="callout aside">
+                <strong>Isn't this like <a href="echo.html">the Echo Cache article?</a></strong>
+                <p>
+                    Yes! Somewhat atleast. The problem of gathers being slow is the same, but SSrANS is a general
+                    algorithm design, not specifically a hardware design. Moreover, the Echo Cache did not deal with
+                    scatters, only gathers. But bitmaps need both. Eliminating scatter/gathers completely is the only
+                    solution.
+                </p>
+            </div>
+            <div class="callout aside">
+                <strong>Other sparse compression schemes</strong>
+                <p>
+                    Some hardware units have direct support for loading sparse data. Apple's Neural Engine <a
+                        href="https://apple.github.io/coremltools/docs-guides/source/opt-pruning-perf.html">seems to
+                        support RLE</a>, but that is only effective if the zeroes are in continuous groups. If the
+                    zeroes are uniformly spread, then RLE is ineffective, even though the actual entropy content doesn't
+                    care about the location of zeroes.
+                </p>
+                <p>
+                    NVIDIA GPUs have support for <a
+                        href="https://developer.nvidia.com/blog/structured-sparsity-in-the-nvidia-ampere-architecture-and-applications-in-search-engines/">2:4
+                        sparsity</a> but that is a scheme for structured sparsity only. The zeroes must follow
+                    a 2:4 pattern, but pruning techniques make no guarantee that they will produce such a pattern.
+                    Hence the need for an algorithm for general <u>unstructured sparsity</u>.
+                </p>
+            </div>
 
             <h2>Asymmetric Numeral Systems</h2>
             <p>
-                From these requirements, let's consider <a
-                    href="https://en.wikipedia.org/wiki/Asymmetric_numeral_systems">Asymmetric Numeral Systems
-                    (ANS)</a>. ANS is an <a href="https://en.wikipedia.org/wiki/Entropy_coding">entropy coding</a>
-                algorithm, forming the backbone of Facebook's widely used compression tool <a
+                SSrANS builds on <a href="https://en.wikipedia.org/wiki/Asymmetric_numeral_systems">Asymmetric Numeral
+                    Systems (ANS)</a>. ANS is an <a href="https://en.wikipedia.org/wiki/Entropy_coding">entropy
+                    coding</a> algorithm, forming the backbone of Facebook's widely used compression tool <a
                     href="https://en.wikipedia.org/wiki/Zstd">zstd</a>.
             </p>
             <div class="callout aside">
@@ -126,7 +172,6 @@
                     Its worth mentioning that the third link is Yann Collet's blog, the creator of <code>zstd</code>.
                 </p>
             </div>
-
             <p>
                 More specifically, let's consider the <u>Range ANS or rANS</u> variant of the algorithm (the other
                 being Table ANS or tANS).
@@ -217,7 +262,7 @@
                 <img src="img/ssrans/gaussian_diagram.png" title="Example Gaussian Probability Model"
                     alt="Example of Gaussian Probability Model">
                 <figcaption>
-                    Figure 1: Example of a Gaussian probability model and the real data it represents. The distributions
+                    Figure 3: Example of a Gaussian probability model and the real data it represents. The distributions
                     don't match, yet rANS works losslessly and decent compression gains are achieved.
                 </figcaption>
             </figure>
@@ -233,7 +278,7 @@
             <p>
                 This creates a very lucrative optimization for rANS: If we can replace table lookups with computed
                 functions from a probability model, we have eliminated a significant source of irregular memory
-                accesses. This helps us <u>satisfy all 4 requirements</u> I listed in the previous section.
+                accesses.
             </p>
 
             <div class="callout aside">
@@ -256,7 +301,6 @@
                     is to <u>model sparsity</u> and we will <i>still</i> enjoy considerable compression, even if there
                     are other facts we have left on the table.
                 </p>
-                <p>This is why ANS resiliency is crucial to us.</p>
             </div>
 
             <h2>Probability Model for Sparse Data</h2>
@@ -292,7 +336,7 @@
                     <img src="img/ssrans/histogram_archetype.png" title="Archetypical Histograms"
                         alt="Archetypical Histograms">
                     <figcaption>
-                        Figure 2: Archetypical symbol probability distributions for dense and sparse data. Dense is
+                        Figure 4: Archetypical symbol probability distributions for dense and sparse data. Dense is
                         completely uniform and sparse assumes a higher number of $\varnothing$s.
                     </figcaption>
                 </figure>
@@ -310,7 +354,7 @@
                 <img src="img/ssrans/sparse_archetype.png" title="Example of Sparse Probability Model"
                     alt="Example of Sparse Probability Model">
                 <figcaption>
-                    Figure 3: Example of our sparse probability model and the real data it represents.
+                    Figure 5: Example of our sparse probability model and the real data it represents.
                 </figcaption>
             </figure>
             <div class="callout aside">
@@ -384,7 +428,7 @@
 
             <p>
                 Integrating this into the rANS compression and decompression procedures yields our
-                <u>Sparsity-Specialized rANS (SSrANS)</u> algorithm, i.e. rANS with a probability model for sparse data
+                <b>Sparsity-Specialized rANS (SSrANS)</b> algorithm, i.e. rANS with a probability model for sparse data
                 instead of table-lookups.
             </p>
             <p>
@@ -429,7 +473,7 @@ def decompress(x):
     return s, new_x</code></pre>
             </p>
 
-            We can see that this satisfies our 4 requirements:
+            We can clearly see it's useful properties:
             <ul>
                 <li>It optimally models sparsity without a 1 bit-per-symbol ceiling (unlike bitmaps)</li>
                 <li>When vectorized, each thread runs these procedures independently with no global
@@ -437,6 +481,7 @@ def decompress(x):
                 <li>It has only one memory read (when reading the data-stream in compression, or the state variables in
                     decompression). This read can be coalesced across threads.</li>
                 <li>It has only short branches that can be implemented using predicated instructions or masks</li>
+                <li>Each thread owns its input/output (i.e. the state variables), no scatter/gather needed</li>
             </ul>
 
             <h2>Constant Rounding</h2>
@@ -465,6 +510,7 @@ def decompress(x):
     # Both guaranteed to be integers
     return F_zero, F_nonzero
 </code></pre>
+            </p>
             <div class="callout aside">
                 <strong>Choosing $M$</strong>
                 <p>
@@ -473,7 +519,7 @@ def decompress(x):
                 </p>
                 <p>
                     $M$ is adjustable (instead of being a constant function of the data-stream) because in all
-                    entropy-coders, we only care about the relative distribution of symbol frequencies, not their
+                    entropy-coders, we only care about the <i>relative</i> distribution of symbol frequencies, not their
                     absolute values. So we can scale the histogram however we want, and therefore $M$ is not fixed.
                 </p>
                 <p>
@@ -490,15 +536,14 @@ def decompress(x):
                 </p>
                 <p>
                     For our particular motivation, KV cache pruning, this is acceptable, since pruning typically
-                    assumes a target percentage-sparsity to begin with, i.e. we already know how much pruning we're
-                    going to do. Hence, we already know $S$ before compressing/decompressing the pruned KV cache.
+                    assumes a target sparsity to begin with, i.e. we already know how much pruning we're going to do.
+                    Hence, we already know $S$ before compressing/decompressing the pruned KV cache.
                 </P>
                 <p>
                     In case we don't know $S$ as a constant upfront, we can build a dynamic model, where $S$ is "learnt"
                     as we process the data-stream.
                 </p>
             </div>
-            </p>
 
             <h2>Vectorization</h2>
             <p>
@@ -514,77 +559,117 @@ def decompress(x):
 
             <h2>Experimental Results</h2>
             <p>
-                To show the performance advantages of SSrANS, let's compare it against a regular rANS implementation as
-                well as a bitmap scheme for sparse data. I will implement all 3 as CUDA kernels and test them on my
-                NVIDIA RTX 5070.
-            </p>
-            <p>
-                The CUDA kernels and benchmarking code <a
-                    href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/benchmark">can be found here</a>.
-            </p>
-            <p>
-                In order to measure just the algorithms' core performance. The kernels only test the raw throughput of
-                the core decompression loops, and therefore:
-            </p>
-            <ul>
-                <li>They operate on synthetic data</li>
-                <li>Only read from shared-memory</li>
-                <li>Operate in a single block on a single streaming-multiprocessor</li>
-            </ul>
-            <p>The kernels only "go through the motions" of the algorithms.</p>
-            <figure>
-                <img title="Throughput Comparison of the 3 Algorithms">
-                <figcaption>Figure 4: Throughput of the algorithm kernels measured in symbols-per-second</figcaption>
-            </figure>
-            <p>
-                SSrANS has <u>55% higher throughput</u> than vanilla rANS, and XX% higher throughput than bitmaps. Its
-                clear that bitmaps are the worst option for parallel, vectorized implementations, and
-                sparsity-specialization provides considerable gains to vanilla rANS.
-            </p>
-            <p>
-                The SSrANS and vanilla rANS CUDA kernels look almost identical, but the difference can be seen clearly
-                when comparing the <a href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/ptx">kernels'
-                    PTX code</a>. The SSrANS kernel is significantly smaller because in addition to removing the three
-                <code>ld.shared</code> instructions, we've also gotten rid of the address calculations. SSrANS has a
-                clear performance advantage even aside from the bank-conflict and uncoalescable reads problem.
-            </p>
-            <p>
-                Finally, we need to also compare compression ratios. For this, we have <a
-                    href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/ratio"
-                    style="white-space: nowrap">a python script</a> that compresses random data with adjustable
-                sparsity, and compares the compression ratios of bitmaps, rANS (with perfect frequency tables) and
-                SSrANS:
+                To show the performance advantage of SSrANS on TPU-like hardware, I wrote a benchmark script that
+                measures decompression speed in mega-symbols-per-second of all 3 algorithms: bitmap, vanilla rANS and
+                SSrANS. The script uses JAX
+                and was tested on TPU v5e-1 on Google Colab. The benchmark script <a
+                    href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/benchmark.py">can be found
+                    here</a>.
             </p>
             <figure>
-                <img src="img/ssrans/ssrans_compression_ratio.png" title="Compression Ratio Comparison"
-                    alt="Compression Ratio Comparison">
+                <img title="Throughput comparison of all 3 algorithms on TPU"
+                    alt="Throughput comparison of all 3 algorithms on TPU" style="width: 90%;"
+                    src="img/ssrans/tpu_throughput_comparison.png">
                 <figcaption>
-                    Figure 5: Comparison of the same data being compressed under SSrANS, vanilla rANS and bitmaps. At
-                    high sparsity, bitmaps provide suboptimal compression ratio.
+                    Figure 6: Throughput of bitmap, vanilla rANS and SSrANS on TPU measured in Msym/s
                 </figcaption>
             </figure>
             <p>
-                At high percentage-sparsity, bitmaps deviate from the optimal Shannon entropy, while rANS and SSrANS
-                stay close to it. It should also be noted that vanilla rANS and SSrANS compression ratios are so similar
-                that the lines are indistinguishable. This is notable since vanilla rANS has exact frequency tables, but
-                SSrANS only has an approximate probability model.
+                At peak, SSrANS is an incredible <u>20.2x faster than bitmap</u> on TPU v5e-1. This figure is probably
+                distorted by the fact that TPU is <a
+                    href="https://github.com/tensorflow/tensorflow/issues/80253">infamously bad at
+                    scatter/gather</a>. So let's run this on CPU SIMD (AVX2) for another data point:
+            </p>
+            <figure>
+                <img title="Throughput comparison of all 3 algorithms on CPU"
+                    alt="Throughput comparison of all 3 algorithms on CPU" style="width: 90%;"
+                    src="img/ssrans/cpu_throughput_comparison.png">
+                <figcaption>
+                    Figure 7: Throughput of bitmap, vanilla rANS and SSrANS on CPU (AVX2) measured in Msym/s
+                </figcaption>
+            </figure>
+            <p>
+                The pattern persists: even on AVX2, where the performance delta of scatter/gather isn't as bad, SSrANS
+                is <u>still 8.5x faster</u> than bitmap.
+            </p>
+            <p>
+                It should be noted that on TPU, vanilla rANS is the slowest, but on CPU, its in the middle. Goes to show
+                that TPU punishes the three irregular table access of vanilla rANS even harder than the bitmap
+                gather-op, so the trouble of developing the probability model was indeed worth it. Additionally, SSrANS
+                does not need extra VMEM to store frequency tables.
+            </p>
+            <p>
+                In contrast, lets test the same script on an NVIDIA T4 GPU:
+            </p>
+            <figure>
+                <img title="Throughput comparison of all 3 algorithms on GPU"
+                    alt="Throughput comparison of all 3 algorithms on GPU" style="width: 90%;"
+                    src="img/ssrans/gpu_throughput_comparison.png">
+                <figcaption>
+                    Figure 7: Throughput of bitmap, vanilla rANS and SSrANS on T4 GPU measured in Msym/s
+                </figcaption>
+            </figure>
+            <p>
+                Exact opposite. Bitmaps are very fast on GPU, and rANS is handicapped by the totally serial nature of
+                each thread ($X_{t+1}$ depends on $X_t$), resulting in a lot of stalled instructions and underutilized
+                ALU. There are <i>definitely</i> better ways to implement rANS on GPU than the straightforward JAX
+                kernel we have here, but the point is that bitmap on GPU is fast.
+            </p>
+            <p>
+                This proves our original structural analysis of bitmap compression schemes: they are fast on GPU because
+                of the shared memory with many banks and read-ports, so prefix-sum and gather is fast. On TPU-like
+                hardware, or even on CPU SIMD, that isn't the case, making SSrANS the superior option.
+            </p>
+            <p>
+                And theres a reason that new AI accelerators (that don't have a graphics processing lineage) are the
+                way they are. There are many benefits to having a large VMEM at the expense of fewer read-ports, and we
+                should expect future AI accelerators to be more TPU-like than GPU-like.
+            </p>
+            <p>
+                To round it out, lets compare the compression ratios of all three algorithms. I wrote <a
+                    href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/ratio_comparison_graph.py"
+                    style="white-space: nowrap">a python script</a> that runs the same randomly generated data at
+                different sparsity values through the three algorithms, and compares the compression ratios:
+            </p>
+            <figure>
+                <img src="img/ssrans/compression_ratio_sweep.png" title="Compression Ratio Comparison"
+                    alt="Compression Ratio Comparison">
+                <figcaption>
+                    Figure 8: Comparison of the same data being compressed under SSrANS, vanilla rANS and bitmaps. Note
+                    that the y-axis is log scale.
+                </figcaption>
+            </figure>
+            <p>
+                Vanilla rANS and SSrANS closely follow the true Shannon entropy, with SSrANS falling slightly behind
+                when $S \gt 95\%$. But bitmap begins to fall behind as early as $S = 80\%$, with SSrANS giving 4.9x more
+                compression than bitmap at $S = 99\%$. SSrANS therefore provides much better compression ratios than
+                bitmap at high sparsity.
             </p>
 
             <h2>Conclusion</h2>
             <p>
-                In this article, we started with a discussion of KV cache pruning, particularly MUSTAFAR, and showed
-                that existing schemes for compressing unstructured sparse data have efficiency limitations.
+                In this article, we discussed the concept of sparse data and the various areas where it shows up in AI
+                inference and training. We were particularly motivated by KV cache pruning, which allows for efficient
+                long-context LLM inference.
             </p>
             <p>
-                Based on that, we developed <b>Sparsity-Specialized rANS (SSrANS)</b>, a variation of the rANS
-                compression algorithm where a probability model for sparse data is used to replace the table lookups. We
-                experimentally showed that SSrANS has superior performance and compression ratios than bitmap based
-                schemes.
+                We considered the most popular compression scheme for sparse data: bitmaps with dense arrays, showed
+                that it requires scatter/gathers and cross-lane operations like prefix-sums, and discussed why these can
+                be slow on AI accelerators like Google's TPU and AWS's Trainium.
             </p>
             <p>
-                Overall, unstructured sparsity is a useful tool for improving LLM memory footprint and overall
-                efficiency, and I hope that algorithms like SSrANS allows us to exploit it in a practical and performant
-                manner.
+                We then developed <b>Sparsity-Specialized rANS</b>, a variant of rANS compression that replaces
+                frequency table lookups with a computed probability model for sparse data, allowing for parallel
+                compression and decompression where each lane operates entirely independently.
+            </p>
+            <p>
+                Finally, we experimentally showed that SSrANS is significantly faster than bitmaps on TPU v5e-1, and
+                also provides better compression ratios when sparsity is high.
+            </p>
+            <p>
+                I hope that SSrANS can be widely used as an efficient method for dealing with sparse data in AI, and the
+                full potential of various pruning methods can be used, not just in KV caches, but also activations and
+                gradients, allowing for more efficient LLMs across the stack.
             </p>
         </div>
     </main>

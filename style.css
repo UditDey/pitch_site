@@ -28,7 +28,7 @@
     --warning-border: #c9a540;
     --conclusion-bg: #d8f0dd;
     --conclusion-border: #2a9d4a;
-    --aside-bg: #e8e8e6;
+    --aside-bg: #e5e5e3;
     --aside-border: #888888;
 
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -77,7 +77,7 @@ header .container {
 }
 
 .site-title {
-    font-family: var(--font-sans);
+    font-family: var(--font-serif);
     font-size: 1rem;
     font-weight: 600;
     text-decoration: none;
@@ -94,7 +94,7 @@ nav {
 }
 
 nav a {
-    font-family: var(--font-sans);
+    font-family: var(--font-serif);
     font-size: 0.9rem;
     color: var(--color-text-muted);
     text-decoration: none;
@@ -209,7 +209,7 @@ figure img {
 }
 
 figcaption {
-    font-family: var(--font-sans);
+    font-family: var(--font-serif);
     font-size: 0.875rem;
     color: var(--color-text-muted);
     margin-top: 0.75rem;
@@ -260,7 +260,7 @@ h3 {
 
 /* ===== CALLOUT BOXES ===== */
 .callout {
-    font-family: var(--font-sans);
+    font-family: var(--font-serif);
     font-size: 1rem;
     padding: 1rem 1.25rem;
     margin: var(--spacing-unit) 0;
@@ -332,10 +332,16 @@ footer {
 }
 
 footer .container {
-    font-family: var(--font-sans);
+    font-family: var(--font-serif);
     font-size: 0.875rem;
     color: var(--color-text-muted);
     text-align: center;
+}
+
+footer .back-link {
+    display: block;
+    text-align: left;
+    margin-bottom: 0.75rem;
 }
 
 footer a {
@@ -346,15 +352,9 @@ footer a:hover {
     color: var(--color-link-hover);
 }
 
-footer .back-link {
-    display: block;
-    text-align: left;
-    margin-bottom: 0.75rem;
-}
-
 /* ===== UTILITY ===== */
 .back-link {
-    font-family: var(--font-sans);
+    font-family: var(--font-serif);
     font-size: 0.9rem;
     color: var(--color-text-muted);
     text-decoration: none;
@@ -367,7 +367,7 @@ footer .back-link {
 }
 
 .subtitle {
-    font-family: var(--font-sans);
+    font-family: var(--font-serif);
     font-size: 1.125rem;
     color: var(--color-text-muted);
     margin-top: 0;
@@ -376,7 +376,7 @@ footer .back-link {
 }
 
 .byline {
-    font-family: var(--font-sans);
+    font-family: var(--font-serif);
     font-size: 0.95rem;
     color: var(--color-text-muted);
     text-align: center;

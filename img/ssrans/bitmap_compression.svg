@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 578 406">
+  <style>
+    text { font-family: system-ui, -apple-system, sans-serif; }
+    .row-label  { font-size: 13px; fill: #000; font-weight: 600; }
+    .op-label   { font-size: 11px; fill: #555; font-style: italic; }
+    .note       { font-size: 11px; fill: #888; }
+    .val        { font-size: 13px; fill: #000; }
+    .wire       { stroke: #000; stroke-width: 1; fill: none; }
+    .arrowhead  { fill: #000; }
+  </style>
+  <g id="data">
+    <rect x="81" y="15" width="416" height="34" rx="3" fill="none" stroke="#000" stroke-width="1"/>
+    <line x1="133" y1="15" x2="133" y2="49" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="185" y1="15" x2="185" y2="49" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="237" y1="15" x2="237" y2="49" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="289" y1="15" x2="289" y2="49" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="341" y1="15" x2="341" y2="49" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="393" y1="15" x2="393" y2="49" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="445" y1="15" x2="445" y2="49" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <text class="val" x="107.0" y="32.0" text-anchor="middle" dominant-baseline="central">0</text>
+    <text class="val" x="159.0" y="32.0" text-anchor="middle" dominant-baseline="central">5</text>
+    <text class="val" x="211.0" y="32.0" text-anchor="middle" dominant-baseline="central">0</text>
+    <text class="val" x="263.0" y="32.0" text-anchor="middle" dominant-baseline="central">0</text>
+    <text class="val" x="315.0" y="32.0" text-anchor="middle" dominant-baseline="central">3</text>
+    <text class="val" x="367.0" y="32.0" text-anchor="middle" dominant-baseline="central">0</text>
+    <text class="val" x="419.0" y="32.0" text-anchor="middle" dominant-baseline="central">7</text>
+    <text class="val" x="471.0" y="32.0" text-anchor="middle" dominant-baseline="central">0</text>
+  </g>
+  <text class="row-label" id="ld" x="71" y="32.0" text-anchor="end" dominant-baseline="central">data</text>
+  <g id="a1">
+    <line class="wire" x1="289.0" y1="49" x2="289.0" y2="96"/>
+    <polygon class="arrowhead" points="289.0,104 285.0,96 293.0,96"/>
+  </g>
+  <text class="op-label" id="op1" x="301.0" y="76.5" dominant-baseline="central">check = 0?</text>
+  <g id="bitmap">
+    <rect x="81" y="104" width="416" height="34" rx="3" fill="none" stroke="#000" stroke-width="1"/>
+    <line x1="133" y1="104" x2="133" y2="138" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="185" y1="104" x2="185" y2="138" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="237" y1="104" x2="237" y2="138" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="289" y1="104" x2="289" y2="138" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="341" y1="104" x2="341" y2="138" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="393" y1="104" x2="393" y2="138" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="445" y1="104" x2="445" y2="138" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <text class="val" x="107.0" y="121.0" text-anchor="middle" dominant-baseline="central">0</text>
+    <text class="val" x="159.0" y="121.0" text-anchor="middle" dominant-baseline="central">1</text>
+    <text class="val" x="211.0" y="121.0" text-anchor="middle" dominant-baseline="central">0</text>
+    <text class="val" x="263.0" y="121.0" text-anchor="middle" dominant-baseline="central">0</text>
+    <text class="val" x="315.0" y="121.0" text-anchor="middle" dominant-baseline="central">1</text>
+    <text class="val" x="367.0" y="121.0" text-anchor="middle" dominant-baseline="central">0</text>
+    <text class="val" x="419.0" y="121.0" text-anchor="middle" dominant-baseline="central">1</text>
+    <text class="val" x="471.0" y="121.0" text-anchor="middle" dominant-baseline="central">0</text>
+  </g>
+  <text class="row-label" id="lb" x="71" y="121.0" text-anchor="end" dominant-baseline="central">bitmap</text>
+  <g id="a2">
+    <line class="wire" x1="289.0" y1="138" x2="289.0" y2="185"/>
+    <polygon class="arrowhead" points="289.0,193 285.0,185 293.0,185"/>
+  </g>
+  <text class="op-label" id="op2" x="301.0" y="165.5" dominant-baseline="central">popcnt + prefix-sum</text>
+  <g id="indices">
+    <rect x="81" y="193" width="416" height="34" rx="3" fill="none" stroke="#000" stroke-width="1"/>
+    <line x1="133" y1="193" x2="133" y2="227" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="185" y1="193" x2="185" y2="227" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="237" y1="193" x2="237" y2="227" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="289" y1="193" x2="289" y2="227" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="341" y1="193" x2="341" y2="227" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="393" y1="193" x2="393" y2="227" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="445" y1="193" x2="445" y2="227" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <text class="val" x="107.0" y="210.0" text-anchor="middle" dominant-baseline="central">–</text>
+    <text class="val" x="159.0" y="210.0" text-anchor="middle" dominant-baseline="central">0</text>
+    <text class="val" x="211.0" y="210.0" text-anchor="middle" dominant-baseline="central">–</text>
+    <text class="val" x="263.0" y="210.0" text-anchor="middle" dominant-baseline="central">–</text>
+    <text class="val" x="315.0" y="210.0" text-anchor="middle" dominant-baseline="central">1</text>
+    <text class="val" x="367.0" y="210.0" text-anchor="middle" dominant-baseline="central">–</text>
+    <text class="val" x="419.0" y="210.0" text-anchor="middle" dominant-baseline="central">2</text>
+    <text class="val" x="471.0" y="210.0" text-anchor="middle" dominant-baseline="central">–</text>
+  </g>
+  <text class="row-label" id="li" x="71" y="210.0" text-anchor="end" dominant-baseline="central">indices</text>
+  <g id="a3">
+    <line class="wire" x1="289.0" y1="227" x2="289.0" y2="269"/>
+    <polygon class="arrowhead" points="289.0,277 285.0,269 293.0,269"/>
+  </g>
+  <text class="op-label" id="op3" x="301.0" y="252.0" dominant-baseline="central">scatter</text>
+  <path class="wire" id="skip-path" d="M497,32.0 L515,32.0 L515,252.0 L349.0,252.0"/>
+  <polygon class="arrowhead" points="349.0,252.0 357.0,248.0 357.0,256.0"/>
+  <text class="op-label" x="523" y="142.0" dominant-baseline="central">values</text>
+  <line class="wire" x1="215.0" y1="277" x2="363.0" y2="277"/>
+  <line class="wire" x1="215.0" y1="277" x2="215.0" y2="297"/>
+  <line class="wire" x1="363.0" y1="277" x2="363.0" y2="297"/>
+  <g id="out-bm">
+    <rect x="165.0" y="297" width="100" height="34" rx="3" fill="none" stroke="#000" stroke-width="1"/>
+    <text class="val" x="215.0" y="314.0" text-anchor="middle" dominant-baseline="central">01001010</text>
+  </g>
+  <g id="out-da">
+    <rect x="285.0" y="297" width="156" height="34" rx="3" fill="none" stroke="#000" stroke-width="1"/>
+    <line x1="337.0" y1="297" x2="337.0" y2="331" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <line x1="389.0" y1="297" x2="389.0" y2="331" stroke="#000" stroke-width="0.5" opacity="0.35"/>
+    <text class="val" x="311.0" y="314.0" text-anchor="middle" dominant-baseline="central">5</text>
+    <text class="val" x="363.0" y="314.0" text-anchor="middle" dominant-baseline="central">3</text>
+    <text class="val" x="415.0" y="314.0" text-anchor="middle" dominant-baseline="central">7</text>
+  </g>
+  <text class="row-label" id="lob" x="215.0" y="347" text-anchor="middle" dominant-baseline="central">bitmap</text>
+  <text class="row-label" id="lod" x="363.0" y="347" text-anchor="middle" dominant-baseline="central">dense_array</text>
+  <path fill="none" stroke="#999" stroke-width="1" d="M215.0,369 C215.0,377 289.0,369 289.0,377 C289.0,369 363.0,377 363.0,369"/>
+  <text class="note" x="289.0" y="391" text-anchor="middle" dominant-baseline="central">compressed output</text>
+</svg>
