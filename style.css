@@ -424,3 +424,72 @@ hr {
         font-size: 1.75rem;
     }
 }
+
+/* ===== TABLES (GLOBAL, GRID, HEADER TINT ONLY, FIXED LAYOUT) ===== */
+table {
+    width: 100%;
+    margin: calc(var(--spacing-unit) * 1.25) auto;
+    border-collapse: collapse;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    font-size: 0.98rem;
+    table-layout: fixed;
+}
+
+/* Gridlines + roomier rows */
+th,
+td {
+    border: 1px solid var(--color-border);
+    padding: 0.75rem 0.85rem;
+    /* increased from 0.55/0.65 */
+    vertical-align: middle;
+    text-align: left;
+    background: transparent;
+}
+
+/* Header tint only */
+thead th {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    background: var(--color-bg-alt);
+}
+
+/* Default 3-column proportions (narrower Name column) */
+table th:nth-child(1),
+table td:nth-child(1) {
+    width: 30%;
+}
+
+table th:nth-child(2),
+table td:nth-child(2) {
+    width: 52%;
+}
+
+table th:nth-child(3),
+table td:nth-child(3) {
+    width: 18%;
+}
+
+/* Center Formula + Value columns */
+table th:nth-child(2),
+table td:nth-child(2),
+table th:nth-child(3),
+table td:nth-child(3) {
+    text-align: center;
+}
+
+/* KaTeX inside tables */
+table .math {
+    display: inline-block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    line-height: 1.15;
+}
+
+/* If display math ever appears in a cell, kill its margins */
+table .katex-display {
+    margin: 0;
+    padding: 0;
+}

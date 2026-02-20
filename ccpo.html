@@ -23,108 +23,201 @@
 
             <h2>The Problem</h2>
             <p>
-                It is well known that not all weights are equally important. LLMs contain a small number of
-                <u>salient</u> or <u>outlier</u> weights that have an outsized impact on the model's quality.
+                In the <a href="echo.html">previous article</a> I proposed a hardware solution for high throughput LLM
+                codebook decompression. However, it would only be useful when certain limitations of codebook techniques
+                are addressed. While techniques like <a href="https://arxiv.org/abs/2401.06118">AQLM</a> show strong
+                model quality at even 2 bits-per-weight, the drop in benchmark results is noticeable. TODO: AQLM
+                benchmarks
             </p>
             <p>
-                Quantization schemes are usually aware of this. Some schemes like <a
-                    href="https://arxiv.org/abs/2306.03078">SpQR</a> use mixed-precision weights depending on saliency:
-                most weights are stored in 3-4 bits, salient weights are stored in 16 bits.
+                In general, codebook compression techniques involve initializing a codebook and learning codes via
+                K-means clustering. Ideally, this will produce a set of vector codes that closely approximate the base
+                model weights. But K-means is insufficient, since the real goal is not to just approximate weights, but
+                to <u>approximate outputs</u> when fed the same representative, in-distribution input.
             </p>
             <p>
-                But codebook compression schemes have a limitation here: their ability to closely approximate outliers
-                is limited because the number of codes are small. An outlier weight must be given its own independent
-                code in the codebook to be approximated well. But since the codes are few, theres a global averaging
-                effect, and outliers are not represented well.
+                This is why practical codebook techniques have an multi-step optimization loop: K-means tunes codes to
+                approximate weights, then output MSE loss is used to tune codes to approximate outputs under the same
+                representative input. TODO: diagram
             </p>
-
-            <h2>The Proposal</h2>
             <p>
-                Stick to regular codebook methods like <a href="https://arxiv.org/abs/2401.06118">AQLM</a>, except
-                patch-in
-                outlier weights as scalars. So indices-into-codebooks forms the bulk of the weights, and outliers are
-                patched in by scalars, storing the <i>original</i> weight value from the base, uncompressed model. TODO:
-                Diagram
+                But it is well known that not all weights in LLMs are equally important. Activations are "spiky", not
+                uniform. Weights that are larger in value, or are fed large activations, are more important to the
+                model's output than others. Such weights are called <u>outliers</u>. All quantization techniques have
+                some awareness of outliers, not just codebooks. But codebook techniques are at a distinct disadvantage
+                here: for an outlier to be accurately represented, an entire code needs to be adjusted to accomodate it.
+                And since the number of available codes are low (thats the whole point of codebook compression), I
+                hypothesize that <u>codebook techniques struggle with outliers</u> more than regular scalar quantization
+                techniques.
             </p>
-
+            <p>WANDA??</p>
             <p>
-                This complicates the storage format: are outlier patches stored inline with indices? or do they come
-                from a seperate sparse list? I treat these as implementation details, since my goal here is to just show
-                that this idea is useful. If dedicated codebook hardware is used (as I suggest in <a
-                    href="echo.html">the previous article</a>), patching-in weights can be made more efficient.
+                <a href="https://arxiv.org/abs/2306.03078">SpQR</a> is a significant inspiration here. In that paper,
+                the authors store the bulk of weights in a low precision format (3-4 bits) and seperately store outliers
+                in higher precision (16 bits). During inference the base weights and the sparse outliers are combined.
             </p>
-
+            <p>
+                In this article I will experiment with the feasibility of the SpQR idea applies to codebook compression
+                techniques: <b>Codebook Compression with Patched Outliers (CCPO)</b>. The bulk of weights are stored as
+                indices into codebooks, but outliers are stored as literals that are "patched" into the weight matrix
+                during inference. TODO: overall diagram
+            </p>
             <div class="callout aside">
-                <strong>SpQR</strong>
+                <strong>Disclaimer</strong>
                 <p>
-                    This strongly resembles the aforementioned <a href="https://arxiv.org/abs/2306.03078">SpQR</a>
-                    paper, except applied to codebook quantization instead of regular, scalar quantization.
+                    This article provides a "micro-demonstration" of the idea. My original intent was to do a full
+                    end-to-end LLM test with CCPO, but that requires more time and compute than I have available.
                 </p>
                 <p>
-                    In SpQR, the authors use 3-4 bits of precision for the bulk of weights, and keep a seperate sparse,
-                    outlier matrix in 16 bits.
+                    I will instead "piece-wise" experiment on a single layer, and show that patching does indeed restore
+                    output accuracy without significantly harming compression ratios.
                 </p>
             </div>
 
             <h2>Experimental Setup</h2>
             <p>
-                We'll take <a
-                    href="https://huggingface.co/ISTA-DASLab/Meta-Llama-3-8B-Instruct-AQLM-2Bit-1x16">ISTA-DASLab/Meta-Llama-3-8B-Instruct-AQLM-2Bit-1x16</a>
-                as our test model. This is a AQLM quantized version of Llama-3-8B.
+                We will operate on <a href="https://huggingface.co/Qwen/Qwen3-1.7B">Qwen3-1.7B's</a>
+                <code>XXX.mlp.down_proj</code> layer. We will run the LLM through the <a
+                    href="https://huggingface.co/datasets/allenai/c4">c4</a> dataset and hook the inputs feeding into
+                that layer. We're interested in a "representative" input, so we'll collect L2 norms of the activations
+                fed into that layer, which tells us what the layer is being fed on-average.
             </p>
             <p>
-                The gameplan is:
-            <ol>
-                <li>Benchmark the base model</li>
-                <li>Benchmark the AQLM model</li>
-                <li>Decompress the AQLM model, patch-in some percentage of salient weights, and benchmark</li>
-            </ol>
-            </p>
-            <p>
-                This should give us an idea of how much AQLM affects model quality, and how much of it is restored by
-                outlier patching.
-            </p>
-            <p>
-                First, we should define the <u>saliency metric</u> we'll use to measure how important a weight is. While
-                the "true" measure depends on the Hessian matrix, we can use simpler, approximate metrics too.
-            </p>
-            <p>
-                Lets use this metric, inspired by <a href="https://arxiv.org/abs/2306.11695">Wanda</a>:
-                $$
-                S_{ij} = |W_{ij}| \cdot |W_{ij} - \hat{W}_{ij}| \cdot \|X_j\|_2
-                $$
-                Where:
-            <ul>
-                <li>$S_{ij}$ is the saliency of the weight at position $i, j$</li>
-                <li>$W_{ij}$ is the original, base model weight</li>
-                <li>$\hat{W}_{ij}$ is the decompressed weight</li>
-                <li>$X_j$ is the $L_2$ norm of the input activations at feature $j$</li>
-            </ul>
-            </p>
-            <p>
-                Intuitively, this metric measures:
-            <ul>
-                <li>How important is this weight? ($W_{ij}$ and $X_j$)</li>
-                <li>How much does the codebook reconstruction deviate from the original value? <br> ($|W_{ij} -
-                    \hat{W}_{ij}|$)
-                </li>
-            </ul>
-            </p>
-            <p>
-                To collect activation norms, we will first run the model on the <a
-                    href="https://huggingface.co/datasets/allenai/c4">c4</a> dataset (also used by Wanda's official
-                code), and for benchmarking, we will measure perplexity over WikiText-2.
-            </p>
-            <p>
-                All the code for these tests <a href="https://github.com/UditDey/pitch_site/blob/main/code/ccpo">can be
+                The code for this experiment <a href="https://github.com/UditDey/pitch_site/blob/main/code/ccpo">can be
                     found here</a>.
             </p>
 
-            <h2>Results</h2>
-            <p></p>
+            <h2>Collecting Activation Inputs</h2>
+            <p>
+                This is simple enough. We hook into the <code>XXX.mlp.down_proj</code> layer, run the LLM through $N$
+                tokens from c4, and collect a dataset of layer input vectors $\mathcal{D} = \{x^{(n)} \}_{n=1}^N$ where
+                $x^{(n)} \in \mathbb{R}^d$ and $d$ is the <code>in_features</code> of the MLP layer.
+            </p>
+            <p>
+                Let's measure the "spikiness" of the input activations to this layer by seeing how much energy is
+                concentrated in the biggest components of each vector:
+            </p>
+            $$ \mathrm{EC}_k := \mathbb{E}_{x\sim\mathcal{D}}\left[\frac{\|x_{\text{top-}k}\|_2^2}{\|x\|_2^2}\right] $$
+            <figure>
+                <img title="Energy concentration in collected activation inputs"
+                    alt="Energy concentration in collected activation inputs" style="width: 90%;">
+                <figcaption>
+                    Figure 1: Energy concentratio ratio for top-k % of activation vector components
+                </figcaption>
+            </figure>
+            <p>
+                We can see that a small percentage of scalars account for a significant amount of energy in the
+                activation vectors. This shows that activations are non-uniform, and the weights corresponding to
+                strong activation scalars are more important than the others.
+            </p>
 
-            <h2>Conclusion</h2>
-            <p></p>
+
+            <h2>K-Means Clustering</h2>
+            <p>
+                This is the starting step of most codebook compression techniques. We'll use a code size of 8, with 256
+                codes. This means each index is $log_2(256) = 8$ bits. We will randomly initialize the codes then use
+                <u>mini-batch K-means</u> to make them approximate weights.
+            </p>
+            <p>
+                The training set is formed by flattening the MLP weight matrix along rows, and dividing them into groups
+                of 8. Since our <code>XXX.mlp.down_proj</code> layer has shape <code>XXX x XXX</code>, we get XXX
+                training points. TODO: training set diagram
+            </p>
+            <p>
+                After XX iterations of mini-batch K-means, we get our learned codes. We can now compress the MLP layer's
+                weight matrix: TODO: indices diagram
+            </p>
+            <p>
+                We now have two weight matrices: the base matrix $W$ and the codebook version $\hat{W}$.
+                First, let's measure how well $\hat{W}$ approximates $W$, i.e. the weight-space error:
+            </p>
+            <table class="metrics-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Formula</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Relative Frobenius Error</td>
+                        <td><span class="math">$ \frac{\lVert W-\hat{W}\rVert_F}{\lVert W\rVert_F} $</span></td>
+                        <td>TODO</td>
+                    </tr>
+                    <tr>
+                        <td>P99 Absolute Weight Error</td>
+                        <td><span class="math">$ \mathrm{P99}\!\left(\lvert W-\hat{W}\rvert\right) $</span></td>
+                        <td>TODO</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>
+                Now we compare $\mathbb{E}[\,xW^\top\,]$ and $\mathbb{E}[\,x\hat{W}^\top\,]$ where $x \sim \mathcal{D}$,
+                i.e. the output-space error:
+            </p>
+            <table class="metrics-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Formula</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>NMSE</td>
+                        <td>
+                            <span class="math">$
+                                \frac{
+                                \mathbb{E}\!\left[\left\lVert xW^{\top}-x\hat{W}^{\top}\right\rVert_2^2\right]
+                                }{
+                                \mathbb{E}\!\left[\left\lVert xW^{\top}\right\rVert_2^2\right]
+                                }
+                                $</span>
+                        </td>
+                        <td>TODO</td>
+                    </tr>
+                    <tr>
+                        <td>Cosine Similarity</td>
+                        <td>
+                            <span class="math">$
+                                \mathbb{E}\!\left[
+                                \frac{\left\langle xW^{\top},\,x\hat{W}^{\top}\right\rangle}
+                                {\left\lVert xW^{\top}\right\rVert_2\,\left\lVert x\hat{W}^{\top}\right\rVert_2}
+                                \right]
+                                $</span>
+                        </td>
+                        <td>TODO</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>Patching Outliers</h2>
+            Following WANDA, let's use this saliency metric to find outliers:
+            $$ S_{ij} = |W_{ij} - \hat{W}_{ij}| \cdot \sqrt{\mathbb{E}[\,x_j^2\,]} $$
+
+            <p>
+                Intuitively, for weight at position $(i, j)$, this measures how important it is based on it's
+                input magnitude (RMS of $x_j$), and how poorly it was reconstructed ($|W_{ij} - \hat{W}_{ij}|$).
+                The weights we need to prioritize for patching are those with strong inputs but poor reconstruction by
+                the codebook.
+            </p>
+            <p>
+                We calculate a saliency value for each weight, then select some top-k percent of them for patching. This
+                percentage is our <u>patching budget</u>. The hypothesis, following SpQR, is that even a
+                small budget will provide significant improvements in output error.
+            </p>
+            <p>
+                Now that we've selected top-k outliers based on saliency, we can patch them into $\hat{W}$ and again
+                measure output reconstruction: TODO: graph
+            </p>
+            <p>TODO: Section conclusion</p>
+
+            <h2>Tuning</h2>
+            <p>Tuning codes/patch values, talk std/mu difference for norm tuning</p>
+
+            <h2>Compression Ratio Overhead</h2>
     </main>
 
     <footer>
