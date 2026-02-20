@@ -438,7 +438,7 @@ M = ...
 N = ...
 S = ...
 
-F_ZERO = (M * S)
+F_ZERO = M * S
 F_NON_ZERO = (M * (1 - S)) // (N - 1)
 
 
@@ -568,7 +568,7 @@ def decompress(x):
             </p>
             <figure>
                 <img title="Throughput comparison of all 3 algorithms on TPU"
-                    alt="Throughput comparison of all 3 algorithms on TPU" style="width: 90%;"
+                    alt="Throughput comparison of all 3 algorithms on TPU"
                     src="img/ssrans/tpu_throughput_comparison.png">
                 <figcaption>
                     Figure 6: Throughput of bitmap, vanilla rANS and SSrANS on TPU measured in Msym/s
@@ -582,7 +582,7 @@ def decompress(x):
             </p>
             <figure>
                 <img title="Throughput comparison of all 3 algorithms on CPU"
-                    alt="Throughput comparison of all 3 algorithms on CPU" style="width: 90%;"
+                    alt="Throughput comparison of all 3 algorithms on CPU"
                     src="img/ssrans/cpu_throughput_comparison.png">
                 <figcaption>
                     Figure 7: Throughput of bitmap, vanilla rANS and SSrANS on CPU (AVX2) measured in Msym/s
