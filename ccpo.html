@@ -100,7 +100,8 @@
             $$ \mathrm{EC}_k := \mathbb{E}_{x\sim\mathcal{D}}\left[\frac{\|x_{\text{top-}k}\|_2^2}{\|x\|_2^2}\right] $$
             <figure>
                 <img title="Energy concentration in collected activation inputs"
-                    alt="Energy concentration in collected activation inputs" style="width: 90%;">
+                    alt="Energy concentration in collected activation inputs" style="width: 90%;"
+                    src="img/ccpo/energy_concentration.png">
                 <figcaption>
                     Figure 1: Energy concentratio ratio for top-k % of activation vector components
                 </figcaption>
@@ -176,7 +177,7 @@
                                 }
                                 $</span>
                         </td>
-                        <td>TODO</td>
+                        <td>$39.3\%$</td>
                     </tr>
                     <tr>
                         <td>Cosine Similarity</td>
@@ -188,7 +189,7 @@
                                 \right]
                                 $</span>
                         </td>
-                        <td>TODO</td>
+                        <td>$0.7803$</td>
                     </tr>
                 </tbody>
             </table>
@@ -209,10 +210,20 @@
                 small budget will provide significant improvements in output error.
             </p>
             <p>
-                Now that we've selected top-k outliers based on saliency, we can patch them into $\hat{W}$ and again
-                measure output reconstruction: TODO: graph
+                Now that we've selected top-k outliers based on saliency, we can patch them into $\hat{W}$ and measure
+                error again:
             </p>
-            <p>TODO: Section conclusion</p>
+            <figure>
+                <img title="Output-space error vs patching budget" alt="Output-space error vs patching budget"
+                    style="width: 90%;" src="img/ccpo/output_space_sweep.png">
+                <figcaption>
+                    Figure 2: Output-space error metrics vs patching budget %
+                </figcaption>
+            </figure>
+            <p>
+                We can see that patching weights based on saliency rapidly reduces output error. This is in line with
+                the energy concentration graph from before: even a small amount of patching significantly reduces error.
+            </p>
 
             <h2>Tuning</h2>
             <p>Tuning codes/patch values, talk std/mu difference for norm tuning</p>
