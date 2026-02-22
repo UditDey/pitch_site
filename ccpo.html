@@ -30,38 +30,44 @@
                 benchmarks
             </p>
             <p>
-                In general, codebook compression techniques involve initializing a codebook and learning codes via
-                K-means clustering. Ideally, this will produce a set of vector codes that closely approximate the base
-                model weights. But K-means is insufficient, since the real goal is not to just approximate weights, but
-                to <u>approximate outputs</u> when fed the same representative, in-distribution input.
+                It is well known that not all weights in LLMs are equally important. One reason is that the previous
+                layer's activations, fed into the current layer as inputs, tend to be "spiky" and not uniform. Weights
+                that are fed "hot" inputs become more important to the LLM's quality than the rest. When a component of
+                a linear layer's input vector is "hot", the entire corresponding column in the weight matrix becomes
+                hot. These extra important weights are called <u>outlier weights</u> or salient weights.
+            </p>
+            <figure>
+                <img title="Spiky inputs and hot weights" alt="Spiky inputs and hot weights"
+                    src="img/ccpo/hot_matrix.svg" style="width: 90%;">
+                <figcaption>
+                    Figure 1: Heatmap showing a non-uniform, "spiky" input vector and relative importance of weights
+                </figcaption>
+            </figure>
+            <p>
+                All LLM quantization techniques are outlier-aware, including codebook techniques, but I posit that
+                codebook techniques are <u>fundamentally limited in their ability to preserve outliers</u>. To
+                accomodate an outlier, an <i>entire code</i>, consisting of several weights, must be modified. Since the
+                number of codes is small (that is the whole point of codebook compression), the codebook cannot capture
+                outliers well. There is a tradeoff here between generality and outlier preservation.
             </p>
             <p>
-                This is why practical codebook techniques have an multi-step optimization loop: K-means tunes codes to
-                approximate weights, then output MSE loss is used to tune codes to approximate outputs under the same
-                representative input. TODO: diagram
-            </p>
-            <p>
-                But it is well known that not all weights in LLMs are equally important. Activations are "spiky", not
-                uniform. Weights that are larger in value, or are fed large activations, are more important to the
-                model's output than others. Such weights are called <u>outliers</u>. All quantization techniques have
-                some awareness of outliers, not just codebooks. But codebook techniques are at a distinct disadvantage
-                here: for an outlier to be accurately represented, an entire code needs to be adjusted to accomodate it.
-                And since the number of available codes are low (thats the whole point of codebook compression), I
-                hypothesize that <u>codebook techniques struggle with outliers</u> more than regular scalar quantization
-                techniques.
-            </p>
-            <p>WANDA??</p>
-            <p>
-                <a href="https://arxiv.org/abs/2306.03078">SpQR</a> is a significant inspiration here. In that paper,
+                Let's look at <a href="https://arxiv.org/abs/2306.03078">SpQR</a> for inspiration. In that paper,
                 the authors store the bulk of weights in a low precision format (3-4 bits) and seperately store outliers
                 in higher precision (16 bits). During inference the base weights and the sparse outliers are combined.
             </p>
             <p>
-                In this article I will experiment with the feasibility of the SpQR idea applies to codebook compression
-                techniques: <b>Codebook Compression with Patched Outliers (CCPO)</b>. The bulk of weights are stored as
+                In this article I will experiment with the feasibility of the SpQR idea applies to codebook compression:
+                <b>Codebook Compression with Patched Outliers (CCPO)</b>. The bulk of weights are stored as
                 indices into codebooks, but outliers are stored as literals that are "patched" into the weight matrix
-                during inference. TODO: overall diagram
+                during inference.
             </p>
+            <figure>
+                <img title="Overall CCPO idea" alt="Overall CCPO idea" src="img/ccpo/ccpo.svg" style="width: 90%;">
+                <figcaption>
+                    Figure 2: Overall structure of CCPO. Each linear layer is decomposed into a codebook, an index
+                    matrix and a sparse patch matrix.
+                </figcaption>
+            </figure>
             <div class="callout aside">
                 <strong>Disclaimer</strong>
                 <p>
@@ -77,7 +83,7 @@
             <h2>Experimental Setup</h2>
             <p>
                 We will operate on <a href="https://huggingface.co/Qwen/Qwen3-1.7B">Qwen3-1.7B's</a>
-                <code>XXX.mlp.down_proj</code> layer. We will run the LLM through the <a
+                <code>14.mlp.down_proj</code> layer. We will run the LLM through the <a
                     href="https://huggingface.co/datasets/allenai/c4">c4</a> dataset and hook the inputs feeding into
                 that layer. We're interested in a "representative" input, so we'll collect L2 norms of the activations
                 fed into that layer, which tells us what the layer is being fed on-average.
@@ -97,17 +103,18 @@
                 Let's measure the "spikiness" of the input activations to this layer by seeing how much energy is
                 concentrated in the biggest components of each vector:
             </p>
-            $$ \mathrm{EC}_k := \mathbb{E}_{x\sim\mathcal{D}}\left[\frac{\|x_{\text{top-}k}\|_2^2}{\|x\|_2^2}\right] $$
+            $$ \mathrm{EC}_k := \mathbb{E}_{x\in\mathcal{D}}\left[\frac{\|x_{\text{top-}k}\|_2^2}{\|x\|_2^2}\right] $$
             <figure>
                 <img title="Energy concentration in collected activation inputs"
-                    alt="Energy concentration in collected activation inputs" src="img/ccpo/energy_concentration.png">
+                    alt="Energy concentration in collected activation inputs" src="img/ccpo/energy_concentration.png"
+                    style="width: 90%;">
                 <figcaption>
-                    Figure 1: Energy concentratio ratio for top-k % of activation vector components
+                    Figure 3: Energy concentration ratio for top-k % of activation vector components
                 </figcaption>
             </figure>
             <p>
                 We can see that a small percentage of scalars account for a significant amount of energy in the
-                activation vectors. This shows that activations are non-uniform, and the weights corresponding to
+                activation vectors. This proves that activations are non-uniform, and the weights corresponding to
                 strong activation scalars are more important than the others.
             </p>
 
@@ -115,26 +122,28 @@
             <h2>K-Means Clustering</h2>
             <p>
                 This is the starting step of most codebook compression techniques. We'll use a code size of 8, with 256
-                codes. This means each index is $log_2(256) = 8$ bits. We will randomly initialize the codes then use
+                codes. This means each index is $\log_{2} 256 = 8$ bits. We will randomly initialize the codes then use
                 <u>mini-batch K-means</u> to make them approximate weights.
             </p>
             <p>
                 The training set is formed by flattening the MLP weight matrix along rows, and dividing them into groups
-                of 8. Since our <code>XXX.mlp.down_proj</code> layer has shape <code>XXX x XXX</code>, we get XXX
-                training points. TODO: training set diagram
+                of 8. Since our <code>14.mlp.down_proj</code> layer has shape $(2048, 6144)$ we get $\frac{2048 \times
+                6144}{8} = 1{,}572{,}864$ training points.
             </p>
             <p>
-                After XX iterations of mini-batch K-means, we get our learned codes. We can now compress the MLP layer's
-                weight matrix: TODO: indices diagram
+                We use <code>MiniBatchKMeans</code> from <code>sklearn.cluster</code>, which handles initializing the
+                codes and training them on our dataset. After training, each weight group is assigned to its nearest
+                code, obtaining our <code>(codebook, index_matrix)</code> pair.
             </p>
             <p>
-                We now have two weight matrices: the base matrix $W$ and the codebook version $\hat{W}$.
-                First, let's measure how well $\hat{W}$ approximates $W$, i.e. the weight-space error:
+                We now have two weight matrices: the base matrix $W$ and the codebook version $\hat{W}$ reconstructed
+                from the index matrix. First, let's measure how well $\hat{W}$ approximates $W$, i.e. the
+                <u>weight-space error</u>:
             </p>
             <table class="metrics-table">
                 <thead>
                     <tr>
-                        <th>Name</th>
+                        <th>Metric</th>
                         <th>Formula</th>
                         <th>Value</th>
                     </tr>
@@ -143,23 +152,23 @@
                     <tr>
                         <td>Relative Frobenius Error</td>
                         <td><span class="math">$ \frac{\lVert W-\hat{W}\rVert_F}{\lVert W\rVert_F} $</span></td>
-                        <td>TODO</td>
+                        <td>$57.9\%$</td>
                     </tr>
                     <tr>
                         <td>P99 Absolute Weight Error</td>
                         <td><span class="math">$ \mathrm{P99}\!\left(\lvert W-\hat{W}\rvert\right) $</span></td>
-                        <td>TODO</td>
+                        <td>$0.0511$</td>
                     </tr>
                 </tbody>
             </table>
             <p>
-                Now we compare $\mathbb{E}[\,xW^\top\,]$ and $\mathbb{E}[\,x\hat{W}^\top\,]$ where $x \sim \mathcal{D}$,
-                i.e. the output-space error:
+                Now let's compare $\mathbb{E}[\,Wx\,]$ and $\mathbb{E}[\,\hat{W}x\,]$ where $x \in \mathcal{D}$,
+                i.e. the <u>output-space error</u>:
             </p>
             <table class="metrics-table">
                 <thead>
                     <tr>
-                        <th>Name</th>
+                        <th>Metric</th>
                         <th>Formula</th>
                         <th>Value</th>
                     </tr>
@@ -170,9 +179,9 @@
                         <td>
                             <span class="math">$
                                 \frac{
-                                \mathbb{E}\!\left[\left\lVert xW^{\top}-x\hat{W}^{\top}\right\rVert_2^2\right]
+                                \mathbb{E}\!\left[\left\lVert Wx-\hat{W}x\right\rVert_2^2\right]
                                 }{
-                                \mathbb{E}\!\left[\left\lVert xW^{\top}\right\rVert_2^2\right]
+                                \mathbb{E}\!\left[\left\lVert Wx\right\rVert_2^2\right]
                                 }
                                 $</span>
                         </td>
@@ -183,8 +192,8 @@
                         <td>
                             <span class="math">$
                                 \mathbb{E}\!\left[
-                                \frac{\left\langle xW^{\top},\,x\hat{W}^{\top}\right\rangle}
-                                {\left\lVert xW^{\top}\right\rVert_2\,\left\lVert x\hat{W}^{\top}\right\rVert_2}
+                                \frac{\left\langle Wx,\,\hat{W}x\right\rangle}
+                                {\left\lVert Wx\right\rVert_2\,\left\lVert \hat{W}x\right\rVert_2}
                                 \right]
                                 $</span>
                         </td>
@@ -194,7 +203,8 @@
             </table>
 
             <h2>Patching Outliers</h2>
-            Following WANDA, let's use this saliency metric to find outliers:
+            Following <a href="https://arxiv.org/abs/2306.11695">Wanda</a>, let's use this saliency metric to find
+            outliers:
             $$ S_{ij} = |W_{ij} - \hat{W}_{ij}| \cdot \sqrt{\mathbb{E}[\,x_j^2\,]} $$
 
             <p>
@@ -209,31 +219,193 @@
                 small budget will provide significant improvements in output error.
             </p>
             <p>
-                Now that we've selected top-k outliers based on saliency, we can patch them into $\hat{W}$ and measure
-                error again:
+                Now that we've selected top-k outliers based on our saliency metric, we can patch them into $\hat{W}$
+                and measure error again:
             </p>
             <figure>
                 <img title="Output-space error vs patching budget" alt="Output-space error vs patching budget"
-                    src="img/ccpo/output_space_sweep.png">
+                    src="img/ccpo/sweep_error.png">
                 <figcaption>
-                    Figure 2: Output-space error metrics vs patching budget %
+                    Figure 4: Error metrics vs patching budget %
                 </figcaption>
             </figure>
             <p>
-                We can see that patching weights based on saliency rapidly reduces output error. This is in line with
-                the energy concentration graph from before: even a small amount of patching significantly reduces error.
+                We can see that as we patch more weights in, weight-space error decreases linearly, but output-space
+                error falls rapidly even with a few percent budget. 50% of the output error is removed by patching just
+                5% of weights.
             </p>
+            <p>This confirms that our saliency metric is working well.</p>
 
             <h2>Tuning</h2>
-            <p>Tuning codes/patch values, talk std/mu difference for norm tuning</p>
+            <p>
+                After the patched $\hat{W}$ has been created, we can further reduce output error by tuning codes and the
+                patch values. This kind of post-k-means tuning is common in codebook compression techniques, we just
+                have an extra degree of freedom here by being able to tune patch values too.
+            </p>
+            <p>
+                For tuning, we just use regular <code>autograd</code>, Adam and MSE loss $\mathcal{L} = \mathbb{E}[(Wx -
+                \hat{W}x)^2]$.
+            </p>
+            <p>We run 3 experiments with the starting state:</p>
+            <ul>
+                <li>1% patch budget</li>
+                <li>Initial NMSE = $29.3\%$</li>
+                <li>Initial Cosine Similarity = $0.8417$</li>
+            </ul>
+            <table class="metrics-table">
+                <thead>
+                    <tr>
+                        <th>Tuning</th>
+                        <th>Results</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Codes Only</td>
+                        <td>NMSE = $28.9\%$<br>Cosine = $0.8427$</td>
+                    </tr>
+                    <tr>
+                        <td>Patch Values Only</td>
+                        <td>NMSE = $26.4\%$<br>Cosine = $0.8589$</td>
+                    </tr>
+                    <tr>
+                        <td>Both</td>
+                        <td>NMSE = $26.1\%$<br>Cosine = $0.8597$</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>
+                The results are admittedly modest, but do prove that patch values provide another useful axis for tuning
+                on top of code tuning.
+            </p>
 
-            <h2>Compression Ratio Overhead</h2>
+            <h2>Storing Patches</h2>
+            <p>
+                At this point, like in Figure 1, we have: 1) a codebook, 2) an index matrix and 3) a sparse patch
+                matrix. Storing the codebook and indices is simple enough, but storing the sparse patches needs some
+                thought, since CCPO is a feasible idea only if the storage space taken up by the sparse patches doesn't
+                dwarf the compression gains achieved by the codebook + indices.
+            </p>
+            <p>
+                The first optimization we can do is to not store the sparse patch matrix seperately. Instead, we
+                <u>intermix patches into the index-stream</u> itself. This avoids having to store a massive number of
+                zeros (in whatever format) entirely.
+            </p>
+            <p>
+                But this complicates the decoder: how does the decoder know whether a value in the data-stream is an
+                index or a patch? If we introduce a flag bit, then, for example, instead of 8 bits, each value becomes 9
+                bits, hurting our compression efforts. Alternatively, if we reserved a special index value, then we've
+                reduced the number of usable codes, hurting the codebook approximation.
+            </p>
+            <p>
+                We can instead take a leaf from <a href="ssrans.html">SSrANS</a> and use <u>entropy coding</u>. We
+                create a special <code>PATCH</code> symbol that tells the decoder "the next set of symbols is a patch
+                value, not an index", and entropy code the resulting intermixed stream.
+            </p>
+            <p>
+                This is way more compact than reserving special bits/indices to represent <code>PATCH</code>, because
+                entropy coding is a <u>variable length encoding</u>. The common case (indices) are stored in few bits,
+                the rare case (patch symbols) are stored in more bits. The common case does not pay a "flat tax" because
+                of <code>PATCH</code>.
+            </p>
+            <figure>
+                <img title="Patches intermixed with indices" alt="Patches intermixed with indices"
+                    src="img/ccpo/intermixed.svg">
+                <figcaption>
+                    Figure 5: Diagram showing how patches are intermixed with indices into one data-stream. The special
+                    <code>PATCH</code> symbol indicates that the next set of symbols are to be interpreted as patch
+                    values, not indices.
+                </figcaption>
+            </figure>
+            <p>
+                This has a very small storage overhead because the <code>PATCH</code> symbol is rare by definition. With
+                an $N\%$ patching budget, we already know how many <code>PATCH</code> symbols exist in the data-stream,
+                and we can create a <u>probability model</u> very similar to what we did in SSrANS, allowing for fast,
+                parallel decoding of the intermixed index-patches stream. Then either a gather operation, or a dedicated
+                hardware unit (like the <a href="echo.html">Echo Cache</a>) expands the indices into full weights, which
+                we can patch.
+            </p>
+            <figure>
+                <img title="Probability model for the intermixed datastream"
+                    alt="Probability model for the intermixed datastream0" src="img/ccpo/intermixed_model.png">
+                <figcaption>
+                    Figure 6: SSrANS style probability model for our data format. Everything is assumed to have uniform
+                    frequency, except for <code>PATCH</code> symbols, which are rare with a known frequency.
+                </figcaption>
+            </figure>
+            <div class="callout aside">
+                <strong>DEFLATE</strong>
+                <p>
+                    This is quite similar to the ubiquitous <a href="https://en.wikipedia.org/wiki/Deflate">DEFLATE</a>
+                    compression algorithm. The first step of DEFLATE is LZ77 coding, which has a similar problem: how
+                    does the decoder know whats a literal and whats a back-reference? DEFLATE assigns dedicated symbols
+                    for each and wraps it up using <a href="https://en.wikipedia.org/wiki/Huffman_coding">Huffman
+                        coding</a>.
+                </p>
+                <p>
+                    The only difference is that I propose using ANS instead of Huffman coding, for the same reasons that
+                    <code>zstd</code> chose ANS over Huffman.
+                </p>
+            </div>
+            <div class="callout aside">
+                <strong>Why not directly use SSrANS?</strong>
+                <p>
+                    If we've already developed SSrANS as a dedicated compression algorithm for sparse data, then why
+                    don't we use it to compress the sparse patch matrix? Why bother with the index-patches intermixing?
+                </p>
+                <p>
+                    The reason is that even with an optimal entropy coder, directly encoding the sparse patch matrix
+                    will be expensive, because we still need to store millions of zero symbols (even if very few
+                    bits are taken per zero).
+                </p>
+                <p>
+                    But by intermixing the patches into the indices, we don't have to store the zeros <i>at all</i>. The
+                    only overhead is for the <code>PATCH</code> symbol, which is rare by design.
+                </p>
+                <p>
+                    In fact, <i>any</i> sparse data format will have to store both the patches and some information
+                    indicating their locations. By intermixing, the patch locations are <u>implicitly determined</u>,
+                    saving lots of space.
+                </p>
+                <p>
+                    This is a unique optimization that CCPO allows for, whereas SSrANS targets the general case.
+                </p>
+            </div>
+            TODO: Plot overhead vs sparsity
+
+            <h2>Conclusion</h2>
+            <p>
+                In this article, I discussed why LLM codebook compression techniques provide impressive compression
+                ratios, but have a fundamental tension between capturing the bulk of weights vs capturing outlier
+                weights. Codes struggle to capture rare outliers because they are dwarfed by the bulk of weights.
+            </p>
+            <p>
+                To solve this, I proposed <b>Codebook Compression with Patched Outliers (CCPO)</b>, a technique inspired
+                by SpQR, where outliers are identified and "patched into" the weight matrix obtained by decompressing
+                the indices.
+            </p>
+            <p>
+                I chose one MLP layer from Qwen3-1.7B, trained a simple K-means codebook on it and experimentally showed
+                that patching even a small number of weights can significantly reduce the output-space error of that MLP
+                layer.
+            </p>
+            <p>
+                Finally I proposed one possible format for storing patches intermixed into the indices-stream, using
+                entropy coding to avoid overhead.
+            </p>
+            <p>
+                I hope that techniques like CCPO, in conjunction with my proposed Echo Cache, are the missing link that
+                make LLM codebok compression more viable, and bring in an era of memory efficient LLM inference.
+            </p>
     </main>
 
     <footer>
         <div class="container">
-            <p><a href="mailto:your.email@example.com">your.email@example.com</a> · <a
-                    href="https://linkedin.com/in/yourprofile">LinkedIn</a></p>
+            <a href="index.html" class="back-link">← Back to Home</a>
+            <p>
+                <a href="mailto:you@example.com">Email</a> ·
+                <a href="https://linkedin.com/in/you">LinkedIn</a>
+            </p>
         </div>
     </footer>
 </body>

@@ -24,7 +24,7 @@
             <h2>The Problem</h2>
             <p>
                 As discussed in <a href="prereq.html#codebook_compression">Prerequisite Concepts</a>, inference on
-                codebook compressed 1LLMs requires reconstructing (i.e. decompressing) the weight matrices like so:
+                codebook compressed LLMs requires reconstructing (i.e. decompressing) the weight matrices like so:
             <pre><code class="language-python">for idx in indices:
     weight_group = codebook[idx]</code></pre>
 
@@ -68,7 +68,8 @@
             <p>
                 For true-multiporting, think of multiported SRAMs. There are multiple usable read-ports, no caveats.
                 This would be ideal, but is also the hardest. If we have hundreds of parallel threads, ideally we need
-                hundreds of true-read-ports. <u>A hundred read-port SRAM is not feasible.</u>
+                hundreds of true-read-ports. <u>A hundred read-port SRAM is not feasible</u>. The area and energy
+                consumption scales unacceptably.
             </p>
             <p>
                 By virtual-multiporting (or VMP), I mean any system that builds a large number from read-ports using
