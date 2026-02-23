@@ -26,9 +26,46 @@
                 In the <a href="echo.html">previous article</a> I proposed a hardware solution for high throughput LLM
                 codebook decompression. However, it would only be useful when certain limitations of codebook techniques
                 are addressed. While techniques like <a href="https://arxiv.org/abs/2401.06118">AQLM</a> show strong
-                model quality at even 2 bits-per-weight, the drop in benchmark results is noticeable. TODO: AQLM
-                benchmarks
+                model quality at even 2 bits-per-weight, the drop in benchmark results is noticeable:
             </p>
+            <table class="metrics-table">
+                <thead>
+                    <tr>
+                        <th>Benchmark</th>
+                        <th><a href="https://huggingface.co/meta-llama/Llama-3.1-70B-Instruct">
+                                Llama-3.1-70B-Instruct
+                            </a>
+                        </th>
+                        <th>
+                            <a href="https://huggingface.co/ISTA-DASLab/Meta-Llama-3.1-70B-Instruct-AQLM-PV-2Bit-1x16">
+                                2-bit AQLM Quant
+                            </a>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>MMLU (5-shot)</td>
+                        <td>$0.8213$</td>
+                        <td>$0.7814$</td>
+                    </tr>
+                    <tr>
+                        <td>ARC-Challenge</td>
+                        <td>$0.6246$</td>
+                        <td>$0.5478$</td>
+                    </tr>
+                    <tr>
+                        <td>HellaSwag</td>
+                        <td>$0.6516$</td>
+                        <td>$0.6284$</td>
+                    </tr>
+                    <tr>
+                        <td>WinoGrande</td>
+                        <td>$0.7908$</td>
+                        <td>$0.7814$</td>
+                    </tr>
+                </tbody>
+            </table>
             <p>
                 It is well known that not all weights in LLMs are equally important. One reason is that the previous
                 layer's activations, fed into the current layer as inputs, tend to be "spiky" and not uniform. Weights
@@ -46,7 +83,7 @@
             <p>
                 All LLM quantization techniques are outlier-aware, including codebook techniques, but I posit that
                 codebook techniques are <u>fundamentally limited in their ability to preserve outliers</u>. To
-                accomodate an outlier, an <i>entire code</i>, consisting of several weights, must be modified. Since the
+                accomodate an outlier, an <i>entire code</i>, consisting of several weights, must be adjusted. Since the
                 number of codes is small (that is the whole point of codebook compression), the codebook cannot capture
                 outliers well. There is a tradeoff here between generality and outlier preservation.
             </p>
@@ -75,8 +112,8 @@
                     end-to-end LLM test with CCPO, but that requires more time and compute than I have available.
                 </p>
                 <p>
-                    I will instead "piece-wise" experiment on a single layer, and show that patching does indeed restore
-                    output accuracy without significantly harming compression ratios.
+                    I will instead do a "piece-wise" experiment on a single layer, and show that patching does indeed
+                    restore output accuracy without significantly harming compression ratios.
                 </p>
             </div>
 
@@ -85,11 +122,11 @@
                 We will operate on <a href="https://huggingface.co/Qwen/Qwen3-1.7B">Qwen3-1.7B's</a>
                 <code>14.mlp.down_proj</code> layer. We will run the LLM through the <a
                     href="https://huggingface.co/datasets/allenai/c4">c4</a> dataset and hook the inputs feeding into
-                that layer. We're interested in a "representative" input, so we'll collect L2 norms of the activations
-                fed into that layer, which tells us what the layer is being fed on-average.
+                that layer.
             </p>
             <p>
-                The code for this experiment <a href="https://github.com/UditDey/pitch_site/blob/main/code/ccpo">can be
+                The code for this experiment <a
+                    href="https://github.com/UditDey/pitch_site/blob/main/code/ccpo/ccpo_expriment.ipynb">can be
                     found here</a>.
             </p>
 
@@ -325,14 +362,6 @@
                 hardware unit (like the <a href="echo.html">Echo Cache</a>) expands the indices into full weights, which
                 we can patch.
             </p>
-            <figure>
-                <img title="Probability model for the intermixed datastream"
-                    alt="Probability model for the intermixed datastream0" src="img/ccpo/intermixed_model.png">
-                <figcaption>
-                    Figure 6: SSrANS style probability model for our data format. Everything is assumed to have uniform
-                    frequency, except for <code>PATCH</code> symbols, which are rare with a known frequency.
-                </figcaption>
-            </figure>
             <div class="callout aside">
                 <strong>DEFLATE</strong>
                 <p>
@@ -371,7 +400,31 @@
                     This is a unique optimization that CCPO allows for, whereas SSrANS targets the general case.
                 </p>
             </div>
-            TODO: Plot overhead vs sparsity
+            Like in SSrANS, we can create a probability model:
+            $$
+            F(\odot) = n_p \\[3ex]
+            F(\text{non-}\odot) = \frac{K + n_p(L-1)}{N}
+            $$
+
+            Where,
+            <ul>
+                <li>$\odot$ is the <code>PATCH</code> symbol</li>
+                <li>$K$ is the number of indices in the index matrix</li>
+                <li>$n_p$ is the number of patches we're applying</li>
+                <li>$L$ is the number of literal symbols following each <code>PATCH</code></li>
+                <li>$N$ is the number of numeric symbols we have (eg: 256 for 8 bit data)</li>
+            </ul>
+            <figure>
+                <img title="Probability model for the intermixed datastream"
+                    alt="Probability model for the intermixed datastream0" src="img/ccpo/intermixed_model.png">
+                <figcaption>
+                    Figure 6: SSrANS style probability model for our data format. The numeric symbols are assumed to
+                    have uniform frequency, and the <code>PATCH</code> symbol is rare with a known frequency.
+                </figcaption>
+            </figure>
+            For clarification, if the indices are 8 bits wide, then we have $2^8 + 1$ symbols, i.e. 256 numeric symbols
+            and one <code>PATCH</code> symbol. If each patch value is FP16, then $L = 2$, because we need two 8 bit
+            values to represent one FP16.
 
             <h2>Conclusion</h2>
             <p>
