@@ -82,7 +82,7 @@
             </figure>
             <p>
                 All LLM quantization techniques are outlier-aware, including codebook techniques, but I posit that
-                codebook techniques are <u>fundamentally limited in their ability to preserve outliers</u>. To
+                codebook techniques are <u>structurally limited in their ability to preserve outliers</u>. To
                 accomodate an outlier, an <i>entire code</i>, consisting of several weights, must be adjusted. Since the
                 number of codes is small (that is the whole point of codebook compression), the codebook cannot capture
                 outliers well. There is a tradeoff here between generality and outlier preservation.
@@ -285,9 +285,9 @@
             </p>
             <p>We run 3 experiments with the starting state:</p>
             <ul>
-                <li>1% patch budget</li>
-                <li>Initial NMSE = $29.3\%$</li>
-                <li>Initial Cosine Similarity = $0.8417$</li>
+                <li>5% patch budget</li>
+                <li>Initial NMSE = $19.9\%$</li>
+                <li>Initial Cosine Similarity = $0.8952$</li>
             </ul>
             <table class="metrics-table">
                 <thead>
@@ -299,21 +299,24 @@
                 <tbody>
                     <tr>
                         <td>Codes Only</td>
-                        <td>NMSE = $28.9\%$<br>Cosine = $0.8427$</td>
+                        <td>NMSE = $19.8\%$<br>Cosine = $0.8958$</td>
                     </tr>
                     <tr>
                         <td>Patch Values Only</td>
-                        <td>NMSE = $26.4\%$<br>Cosine = $0.8589$</td>
+                        <td>NMSE = $15.7\%$<br>Cosine = $0.9184$</td>
                     </tr>
                     <tr>
                         <td>Both</td>
-                        <td>NMSE = $26.1\%$<br>Cosine = $0.8597$</td>
+                        <td>NMSE = $15.6\%$<br>Cosine = $0.9188$</td>
                     </tr>
                 </tbody>
             </table>
             <p>
-                The results are admittedly modest, but do prove that patch values provide another useful axis for tuning
-                on top of code tuning.
+                The results are noteable: starting with a 5% patch budget and then tuning, results in output error thats
+                close to if the budget was 8.5% instead.
+            </p>
+            <p>
+                The error isn't eliminated, but it does show that CCPO adds another degree of freedom for tuning.
             </p>
 
             <h2>Storing Patches</h2>
