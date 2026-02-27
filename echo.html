@@ -422,11 +422,72 @@ endmodule</code></pre>
                 perform a test PnR implementation on just the core topologies alone, i.e. compare crossbar with Omega
                 Network MIN from a <u>topology-only, pure PnR</u> perspective.
             </p>
-            <p>The RTL for this test <a>can be found here.</a></p>
+            <p>The code for this test <a>can be found here.</a></p>
             <p>
                 The topology-only RTL was implemented on the <a
                     href="https://skywater-pdk.readthedocs.io/en/main/">SKY130</a> process using <a
-                    href="https://www.siliconcompiler.com/">SiliconCompiler</a>. TODO: Results
+                    href="https://www.siliconcompiler.com/">SiliconCompiler</a>.
+            </p>
+            <figure>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2640 1470" preserveAspectRatio="xMidYMid meet"
+                    style="width:100%; height:auto; display:block;">
+                    <!-- images (crossbar left, echo right) -->
+                    <image x="0" y="40" width="1280" height="1280" href="img/echo/top_crossbar.routing.png"
+                        preserveAspectRatio="xMidYMid meet" />
+                    <image x="1360" y="40" width="1280" height="1280" href="img/echo/top_echo.routing.png"
+                        preserveAspectRatio="xMidYMid meet" />
+
+                    <!-- labels -->
+                    <text x="640" y="1405" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"
+                        font-weight="700" font-size="64">Crossbar Topo</text>
+
+                    <text x="2000" y="1405" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"
+                        font-weight="700" font-size="64">Echo Topo</text>
+                </svg>
+                <figcaption>
+                    Figure 10: PnR results of the topology-only test
+                </figcaption>
+            </figure>
+            <p>
+                Both Echo and Crossbar tests have the same config: 32 inputs, 32 outputs and 8 bit data, and were
+                implemented with the same flow and same utilization ($40\%$). The crossbar RTL implements a standard
+                crossbar grid, and the echo RTL implements two omega networks. Both have the same top level pins,
+                similar pin placement constraints, and both use simple <code>mux2</code> switches.
+            </p>
+            <table class="metrics-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Crossbar</th>
+                        <th>Echo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Switch Count</td>
+                        <td>$992$</td>
+                        <td>$352$</td>
+                    </tr>
+                    <tr>
+                        <td>Stdcell Area ($\mu\mathrm{m}^2$)</td>
+                        <td>$93{,}602$</td>
+                        <td>$33{,}334$</td>
+                    </tr>
+                    <tr>
+                        <td>Total Die Area ($\mu\mathrm{m}^2$)</td>
+                        <td>$234{,}658$</td>
+                        <td>$83{,}732$</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>
+                The echo topology has ~$65\%$ lower die area and switch count than crossbar topology. Since crossbar has
+                $N^2$ switches, and echo has $2N \log N$ switches, the difference in area will become even more dramatic
+                at higher port counts.
+            </p>
+            <p>
+                This is only an stdcell PnR demonstration. Realistically, bank interconnects will be custom/semi-custom
+                designs. But the algorithmic limitations of crossbars remains no matter what.
             </p>
 
             <h2>Conclusion</h2>

@@ -20,7 +20,7 @@ from siliconcompiler import ASIC, Design
 from siliconcompiler.targets import skywater130_demo
 
 # Must match the N, W used in gen.py
-N = 8
+N = 32
 W = 8
 
 
@@ -59,10 +59,8 @@ def main():
                 project.set('constraint', 'pin', out_name, 'side', 2)
                 project.set('constraint', 'pin', out_name, 'order', i * W + b)
 
-    project.option.set_remote(True)
     project.run()
-    #project.summary()
-    #project.show()
+    project.summary()
 
 
 if __name__ == "__main__":

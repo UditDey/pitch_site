@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SiliconCompiler build script for Echo Cache topology (2x Omega MINs).
+SiliconCompiler build script for Echo topology (2x Omega MINs, shared pins + mode).
 
 Expects echo.v and echo.sdc in the working directory.
 Run gen.py first to produce them.
@@ -10,12 +10,10 @@ Usage:
     python3 build_echo.py --pin-constraints
 
 Pin placement (when --pin-constraints is set):
-    LEFT edge  ("read-port side"):
-        - ctrl_in:  addresses entering the control network
-        - xfer_out: data exiting the transfer network
-    RIGHT edge ("bank side"):
-        - ctrl_out: addresses reaching the banks
-        - xfer_in:  data entering the transfer network from banks
+    LEFT edge ("shared read-port interface"):
+        - data_in:  shared inputs (drive ctrl_in and xfer_in internally)
+        - data_out: shared outputs (muxed between ctrl_out and xfer_out via mode)
+    mode: placed on BOTTOM edge
     Select lines: unconstrained
 """
 
@@ -29,9 +27,9 @@ W = 8
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build Echo Cache topology with SiliconCompiler")
+    parser = argparse.ArgumentParser(description="Build Echo topology with SiliconCompiler")
     parser.add_argument("--pin-constraints", action="store_true",
-                        help="Constrain data pins to die edges matching Echo Cache layout")
+                        help="Constrain data pins to die edges for shared-pin Echo")
     args = parser.parse_args()
 
     design = Design("echo")
@@ -53,46 +51,22 @@ def main():
     # ----------------------------------------------------------------
 
     if args.pin_constraints:
-        order = 0
-
-        # LEFT edge: ctrl_in (addresses from read-ports)
         for i in range(N):
             for b in range(W):
-                name = f"ctrl_in_{i}[{b}]"
-                project.set('constraint', 'pin', name, 'side', 1)
-                project.set('constraint', 'pin', name, 'order', order)
-                order += 1
+                in_name = f"data_in_{i}[{b}]"
+                project.set('constraint', 'pin', in_name, 'side', 1)  # left
+                project.set('constraint', 'pin', in_name, 'order', i * W + b)
 
-        # LEFT edge: xfer_out (data to read-ports)
-        for i in range(N):
-            for b in range(W):
-                name = f"xfer_out_{i}[{b}]"
-                project.set('constraint', 'pin', name, 'side', 1)
-                project.set('constraint', 'pin', name, 'order', order)
-                order += 1
+                out_name = f"data_out_{i}[{b}]"
+                project.set('constraint', 'pin', out_name, 'side', 3)  # bottom
+                project.set('constraint', 'pin', out_name, 'order', i * W + b)
 
-        order = 0
+        # Place mode deterministically (bottom, after the outputs)
+        project.set('constraint', 'pin', "mode", 'side', 2)
+        project.set('constraint', 'pin', "mode", 'order', N * W)
 
-        # RIGHT edge: ctrl_out (addresses to banks)
-        for i in range(N):
-            for b in range(W):
-                name = f"ctrl_out_{i}[{b}]"
-                project.set('constraint', 'pin', name, 'side', 3)
-                project.set('constraint', 'pin', name, 'order', order)
-                order += 1
-
-        # RIGHT edge: xfer_in (data from banks)
-        for i in range(N):
-            for b in range(W):
-                name = f"xfer_in_{i}[{b}]"
-                project.set('constraint', 'pin', name, 'side', 3)
-                project.set('constraint', 'pin', name, 'order', order)
-                order += 1
-
-    project.option.set_remote(True)
     project.run()
     project.summary()
-    project.show()
 
 
 if __name__ == "__main__":

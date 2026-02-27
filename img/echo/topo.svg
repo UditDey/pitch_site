@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2640" height="1470" viewBox="0 0 2640 1470">
+  <style>
+    .boundary { fill: none; stroke: #000; stroke-width: 1.2; }
+    .cell { fill: none; stroke: #000; stroke-width: 1; }
+    .cell-idle { fill: none; stroke: #000; stroke-width: 1; opacity: 0.25; }
+    .line { fill: none; stroke: #000; stroke-width: 1.2; }
+    .node { fill: #000; }
+    .node-idle { fill: #000; opacity: 0.25; }
+    .cell-text { font-family: monospace; font-size: 13px; fill: #000; }
+    .cell-text-idle { font-family: monospace; font-size: 13px; fill: #000; opacity: 0.25; }
+    .box-label { font-family: system-ui, -apple-system, sans-serif; font-size: 16px; fill: #000; font-weight: bold; }
+  </style>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="2640" height="1470" fill="#000000"/>
+
+  <!-- Layout params:
+       image size: 1280x1280
+       gap: 80
+       top padding: 40
+       label area: 110
+  -->
+
+  <!-- Left (Crossbar) -->
+  <image
+    x="0"
+    y="40"
+    width="1280"
+    height="1280"
+    href="img/echo/top_crossbar.routing.png"
+    preserveAspectRatio="xMidYMid meet"
+  />
+  <text x="640" y="1405" text-anchor="middle" class="box-label" fill="#fff">Crossbar Topo</text>
+
+  <!-- Right (Echo) -->
+  <image
+    x="1360"
+    y="40"
+    width="1280"
+    height="1280"
+    href="img/echo/top_echo.routing.png"
+    preserveAspectRatio="xMidYMid meet"
+  />
+  <text x="2000" y="1405" text-anchor="middle" class="box-label" fill="#fff">Echo Topo</text>
+</svg>
