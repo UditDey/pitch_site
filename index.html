@@ -13,45 +13,48 @@
     <main>
         <div class="container">
             <h1>Improving Memory Efficiency in LLM Inference</h1>
-            <p class="subtitle">Three Practical Proposals</p>
+            <p class="subtitle">Three Proposals for the Next-Gen of Inference</p>
 
-            <p>Hello! 👋</p>
             <p>
-                I am a junior engineer in the semiconductor industry with a strong interest in hardware design.
-                Recently, inspired by the persistent DRAM crisis (which is being directly caused by demand from AI
-                inference), I sought to explore techniques for making LLM inference less memory hungry.
+                I'm a junior engineer in the semiconductor industry. Recently, inspired by the
+                ongoing DRAM crisis (caused largely by AI inference demand), I went down a rabbit
+                hole exploring how to make LLM inference less memory hungry. This page documents
+                what came out of that.
             </p>
-
             <p>
-                This page documents three of my developments, which I believe are practical solutions and can
-                significantly <b>reduce memory consumption in LLM weights and KV cache,</b> yielding both performance
-                and economic benefits.
+                I ended up with three proposals that turned out to be more connected than I
+                initially expected. Together they form something like a memory subsystem for
+                codebook-compressed LLM inference:
+            </p>
+            <ul>
+                <li><b>CCPO</b> makes codebook compression more viable by patching outlier weights</li>
+                <li><b>Echo Cache</b> provides the hardware to decompress codebook indices at high throughput</li>
+                <li><b>SSrANS</b> handles the sparse data that CCPO produces (and sparse data in general)</li>
+            </ul>
+            <p>
+                Everything builds on existing academic work — no wheels are reinvented. The code
+                is all public. I'll be upfront about limitations in each article.
             </p>
 
             <div class="callout aside">
-                <strong>The Motivation</strong>
+                <strong>Why this matters</strong>
                 <p>
                     There isn't enough DRAM in the world to feed the datacentres as is. It is <i>absurd</i>
                     to think that recent radical decisions (like Micron leaving the consumer market <i>entirely</i>)
                     can be sustained long term. Once the dust settles, the future of mass-scale LLMs
                     depends on efficiency gains — be it compute or memory.
+                </p>
             </div>
-            </p>
-
-            <p>
-                My work builds on existing academic research. No wheels are re-invented. This page
-                presents the ideas — follow the links to learn more about them.
-            </p>
 
             <hr>
 
             <h2>Scope and Prerequisites</h2>
-            My developments deal with:
+            These proposals span:
             <ul>
                 <li>Hardware cache design</li>
-                <li>Codebook Compression of LLM weights</li>
+                <li>Codebook compression of LLM weights</li>
                 <li>Pruning</li>
-                <li>Parallel/Vector Processors (in general)</li>
+                <li>Parallel/vector processors (in general)</li>
             </ul>
 
             <a href="prereq.html">Click here for a primer</a> on the terms used in
@@ -60,67 +63,74 @@
             <hr>
 
             <h2>The Proposals</h2>
+
             <h3 id="echo">1. Echo Cache</h3>
             <figure class="side">
                 <img src="img/echo/dual_omega_storage.svg" title="Echo Cache Diagram">
             </figure>
             <p>
-                A banked cache, designed for high throughput, parallel codebook decompression of LLM weights.
+                A banked cache designed for high-throughput, parallel codebook decompression of LLM weights.
                 It uses a pair of <a href="https://en.wikipedia.org/wiki/Multistage_interconnection_networks">Multistage
                     Interconnection Networks (MINs)</a> to connect banks to virtual
-                read ports, making it more scalable than crossbars.
-                <br><br>
-                The bank $\leftrightarrow$ port interconnect operates in two phases:
-            <ol>
-                <li>Addresses travel from read-ports to banks</li>
-                <li>Data travels back to read-ports, tracing the same path in reverse</li>
-            </ol>
-
-            Although I present this in the context of codebook decompression of LLM weights, this is
-            a general design for a multiported, banked cache for wide gather operations.
+                read ports, replacing the crossbar. Addresses travel from read ports to banks,
+                data travels back like an echo, tracing the same path in reverse. Packet merging
+                in the MIN enables broadcast, reducing serialization.
             </p>
-
-            <p><a href="echo.html">Click here to read more 👈</a></p>
+            <p>
+                I have a proof-of-concept RTL model and PnR results on SKY130 showing ~65% lower
+                die area than the equivalent crossbar topology.
+            </p>
+            <p><a href="echo.html">Read more →</a></p>
 
 
             <div class="dot-break"></div>
             <h3 id="ssrans">2. Sparsity-Specialized rANS</h3>
             <figure class="side">
-                <img src="https://miro.medium.com/v2/resize:fit:1400/1*isUWWaYQCWepkoyscOeyig.png" title="SSrANS">
+                <img src="img/ssrans/ssrans_formula.png" title="SSrANS">
             </figure>
             <p>
-                A parallel algorithm for compressing/decompressing sparse data. It is designed to optimally
-                exploit sparsity and use efficient memory access patterns.
-                <br><br>
-                I present this with the motivation of loading/storing pruned KV Caches, but this is an
-                algorithm for sparse data in general.
+                A parallel compression/decompression algorithm for sparse data. The key insight:
+                if your data is sparse, you can replace rANS frequency table lookups with a
+                trivially computable probability model, eliminating all irregular memory accesses
+                and cross-lane operations. Each thread runs independently in pure SIMD fashion.
             </p>
-            <p><a href="ssrans.html">Click here to read more 👈</a></p>
+            <p>
+                Benchmarked on TPU v5e-1: 20.2x faster than bitmap compression. On CPU (AVX2):
+                still 8.5x faster. Code and benchmarks are public.
+            </p>
+            <p><a href="ssrans.html">Read more →</a></p>
 
 
             <div class="dot-break"></div>
             <h3 id="ccpo">3. Codebook Compression with Patched Outliers</h3>
             <figure class="side">
-                <img src="img/ccpo/ccpo.svg" title="Codebook Compression">
+                <img src="img/ccpo/ccpo.svg" title="CCPO">
             </figure>
             <p>
-                Building on existing LLM codebook quantization techniques, I show that model
-                quality loss can be minimized by storing a small fraction of outlier weights as <i>literals</i>
-                instead of codebook indices, i.e. store everything as indices into codebooks, but patch salient
-                weights individually.
-                <br><br>
-                Codebook decompression hardware (like Proposal 1) can directly integrate this optimization,
-                and make codebook compression of LLM weights a more feasible reality.
+                Codebook compression struggles with outlier weights because an entire code
+                (multiple weights) must be adjusted to accommodate one outlier. Inspired by
+                <a href="https://arxiv.org/abs/2306.03078">SpQR</a>, I show that storing a small
+                fraction of weights as literals instead of codebook indices significantly reduces
+                output error — patching just 5% of weights removes 50% of the error in my
+                single-layer experiment.
             </p>
-            <p><a href="ccpo.html">Click here to read more 👈</a></p>
+            <p>
+                The sparse patches can be intermixed into the index stream and decoded with
+                entropy coding (like SSrANS), so the full decompression pipeline stays free of
+                irregular memory access. This is the piece that makes codebook compression more
+                viable, which in turn makes dedicated hardware like the Echo Cache worth building.
+            </p>
+            <p>
+                Caveat: this is a single-layer micro-demonstration, not a full end-to-end LLM
+                evaluation. I'm upfront about that in the article.
+            </p>
+            <p><a href="ccpo.html">Read more →</a></p>
 
             <hr>
 
             <h2>About Me</h2>
             <p>
-                A few sentences about your background. Where you work (if appropriate to share),
-                what you do in physical design, and why you're qualified to propose these ideas.
-                Keep it brief but credible.
+                <!-- FILL IN -->
             </p>
         </div>
     </main>
@@ -128,8 +138,9 @@
     <footer>
         <div class="container">
             <p>
-                <a href="mailto:your.email@example.com">your.email@example.com</a> · <a
-                    href="https://linkedin.com/in/yourprofile">LinkedIn</a>
+                <a href="mailto:your.email@example.com">your.email@example.com</a> ·
+                <a href="https://linkedin.com/in/yourprofile">LinkedIn</a> ·
+                <a href="https://github.com/UditDey/pitch_site">Source</a>
             </p>
         </div>
     </footer>

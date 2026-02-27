@@ -62,8 +62,8 @@
             </p>
             <p>
                 I posit that the only flexible solution to making LLM codebook compression viable is to solve the bank
-                conflict problem with a dedicated cache <u>designed for gather ops</u>. To this end, we should first
-                recap why banking and serialization is needed at all.
+                conflict problem at the hardware level, with a dedicated cache <u>designed for gather ops</u>. To this
+                end, we should first recap why banking and serialization is needed at all.
             </p>
 
             <h2>Read-Ports and Banks</h2>
@@ -88,7 +88,7 @@
                 <figcaption>
                     Figure 2: Illustration of banking with a crossbar interconnect. Taken from <a
                         href="https://ece752.ece.wisc.edu/lect14-advanced-caches.pdf">these slides</a> on multiported
-                    caches.
+                    memories.
                 </figcaption>
             </figure>
             <p>
