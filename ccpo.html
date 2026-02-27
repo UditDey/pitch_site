@@ -83,18 +83,19 @@
             <p>
                 All LLM quantization techniques are outlier-aware, including codebook techniques, but I posit that
                 codebook techniques are <u>structurally limited in their ability to preserve outliers</u>. To
-                accomodate an outlier, an <i>entire code</i>, consisting of several weights, must be adjusted. Since the
+                accommodate an outlier, an <i>entire code</i>, consisting of several weights, must be adjusted. Since
+                the
                 number of codes is small (that is the whole point of codebook compression), the codebook cannot capture
                 outliers well. There is a tradeoff here between generality and outlier preservation.
             </p>
             <p>
                 Let's look at <a href="https://arxiv.org/abs/2306.03078">SpQR</a> for inspiration. In that paper,
-                the authors store the bulk of weights in a low precision format (3-4 bits) and seperately store outliers
+                the authors store the bulk of weights in a low precision format (3-4 bits) and separately store outliers
                 in higher precision (16 bits). During inference the base weights and the sparse outliers are combined.
             </p>
             <p>
-                In this article I will experiment with the feasibility of the SpQR idea applies to codebook compression:
-                <b>Codebook Compression with Patched Outliers (CCPO)</b>. The bulk of weights are stored as
+                In this article I will experiment with the feasibility of applying the SpQR idea to codebook
+                compression: <b>Codebook Compression with Patched Outliers (CCPO)</b>. The bulk of weights are stored as
                 indices into codebooks, but outliers are stored as literals that are "patched" into the weight matrix
                 during inference.
             </p>
@@ -150,9 +151,9 @@
                 </figcaption>
             </figure>
             <p>
-                We can see that a small percentage of scalars account for a significant amount of energy in the
-                activation vectors. This proves that activations are non-uniform, and the weights corresponding to
-                strong activation scalars are more important than the others.
+                We can see that a small percentage of scalars account for most of the of energy in the activation
+                vectors. This proves that activations are non-uniform, and the weights corresponding to strong
+                activation scalars are more important than the others.
             </p>
 
 
@@ -245,15 +246,14 @@
             $$ S_{ij} = |W_{ij} - \hat{W}_{ij}| \cdot \sqrt{\mathbb{E}[\,x_j^2\,]} $$
 
             <p>
-                Intuitively, for weight at position $(i, j)$, this measures how important it is based on it's
-                input magnitude (RMS of $x_j$), and how poorly it was reconstructed ($|W_{ij} - \hat{W}_{ij}|$).
-                The weights we need to prioritize for patching are those with strong inputs but poor reconstruction by
-                the codebook.
+                Intuitively, for weight at position $(i, j)$, this measures how important it is based on its input
+                magnitude (RMS of $x_j$), and how poorly it was reconstructed ($|W_{ij} - \hat{W}_{ij}|$). The weights
+                we need to prioritize for patching are those with strong inputs but poor reconstruction by the codebook.
             </p>
             <p>
                 We calculate a saliency value for each weight, then select some top-k percent of them for patching. This
-                percentage is our <u>patching budget</u>. The hypothesis, following SpQR, is that even a
-                small budget will provide significant improvements in output error.
+                percentage is our <u>patching budget</u>. The hypothesis, following SpQR, is that even a small budget
+                will provide significant improvements in output error.
             </p>
             <p>
                 Now that we've selected top-k outliers based on our saliency metric, we can patch them into $\hat{W}$
@@ -276,7 +276,7 @@
             <h2>Tuning</h2>
             <p>
                 After the patched $\hat{W}$ has been created, we can further reduce output error by tuning codes and the
-                patch values. This kind of post-k-means tuning is common in codebook compression techniques, we just
+                patch values. This kind of post-k-means tuning is common in codebook compression techniques. We just
                 have an extra degree of freedom here by being able to tune patch values too.
             </p>
             <p>
@@ -312,22 +312,23 @@
                 </tbody>
             </table>
             <p>
-                The results are noteable: starting with a 5% patch budget and then tuning, results in output error thats
+                The results are notable: starting with a 5% patch budget and then tuning, results in output error that's
                 close to if the budget was 8.5% instead.
             </p>
             <p>
-                The error isn't eliminated, but it does show that CCPO adds another degree of freedom for tuning.
+                Patch tuning is also significantly more effective than code tuning. This goes to show that CCPO adds an
+                important degree of freedom for tuning.
             </p>
 
             <h2>Storing Patches</h2>
             <p>
-                At this point, like in Figure 1, we have: 1) a codebook, 2) an index matrix and 3) a sparse patch
+                At this point, like in Figure 2, we have: 1) a codebook, 2) an index matrix and 3) a sparse patch
                 matrix. Storing the codebook and indices is simple enough, but storing the sparse patches needs some
                 thought, since CCPO is a feasible idea only if the storage space taken up by the sparse patches doesn't
                 dwarf the compression gains achieved by the codebook + indices.
             </p>
             <p>
-                The first optimization we can do is to not store the sparse patch matrix seperately. Instead, we
+                The first optimization we can do is to not store the sparse patch matrix separately. Instead, we
                 <u>intermix patches into the index-stream</u> itself. This avoids having to store a massive number of
                 zeros (in whatever format) entirely.
             </p>
@@ -339,7 +340,7 @@
             </p>
             <p>
                 We can instead take a leaf from <a href="ssrans.html">SSrANS</a> and use <u>entropy coding</u>. We
-                create a special <code>PATCH</code> symbol that tells the decoder "the next set of symbols is a patch
+                create a special <code>PATCH</code> symbol that tells the decoder "the next set of symbols forms a patch
                 value, not an index", and entropy code the resulting intermixed stream.
             </p>
             <p>
@@ -362,17 +363,17 @@
                 an $N\%$ patching budget, we already know how many <code>PATCH</code> symbols exist in the data-stream,
                 and we can create a <u>probability model</u> very similar to what we did in SSrANS, allowing for fast,
                 parallel decoding of the intermixed index-patches stream. Then either a gather operation, or a dedicated
-                hardware unit (like the <a href="echo.html">Echo Cache</a>) expands the indices into full weights, which
-                we can patch.
+                hardware unit (like the <a href="echo.html">Echo Cache</a>), expands the indices into full weights,
+                which we can patch.
             </p>
             <div class="callout aside">
                 <strong>DEFLATE</strong>
                 <p>
                     This is quite similar to the ubiquitous <a href="https://en.wikipedia.org/wiki/Deflate">DEFLATE</a>
                     compression algorithm. The first step of DEFLATE is LZ77 coding, which has a similar problem: how
-                    does the decoder know whats a literal and whats a back-reference? DEFLATE assigns dedicated symbols
-                    for each and wraps it up using <a href="https://en.wikipedia.org/wiki/Huffman_coding">Huffman
-                        coding</a>.
+                    does the decoder know what's a literal and what's a back-reference? DEFLATE assigns dedicated
+                    symbols for each and wraps it up using <a
+                        href="https://en.wikipedia.org/wiki/Huffman_coding">Huffman coding</a>.
                 </p>
                 <p>
                     The only difference is that I propose using ANS instead of Huffman coding, for the same reasons that
@@ -419,13 +420,13 @@
             </ul>
             <figure>
                 <img title="Probability model for the intermixed datastream"
-                    alt="Probability model for the intermixed datastream0" src="img/ccpo/intermixed_model.png">
+                    alt="Probability model for the intermixed datastream" src="img/ccpo/intermixed_model.png">
                 <figcaption>
                     Figure 6: SSrANS style probability model for our data format. The numeric symbols are assumed to
                     have uniform frequency, and the <code>PATCH</code> symbol is rare with a known frequency.
                 </figcaption>
             </figure>
-            For clarification, if the indices are 8 bits wide, then we have $2^8 + 1$ symbols, i.e. 256 numeric symbols
+            For example, if the indices are 8 bits wide, then we have $2^8 + 1$ symbols, i.e. 256 numeric symbols
             and one <code>PATCH</code> symbol. If each patch value is FP16, then $L = 2$, because we need two 8 bit
             values to represent one FP16.
 
@@ -446,13 +447,14 @@
                 layer.
             </p>
             <p>
-                Finally I proposed one possible format for storing patches intermixed into the indices-stream, using
+                Finally, I proposed one possible format for storing patches intermixed into the indices-stream, using
                 entropy coding to avoid overhead.
             </p>
             <p>
                 I hope that techniques like CCPO, in conjunction with my proposed Echo Cache, are the missing link that
-                make LLM codebok compression more viable, and bring in an era of memory efficient LLM inference.
+                make LLM codebook compression more viable, and bring in an era of memory efficient LLM inference.
             </p>
+        </div>
     </main>
 
     <footer>

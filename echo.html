@@ -49,8 +49,8 @@
                 used otherwise.
             </p>
             <p>
-                The problem is far worse on TPU hardware, whose VPU is entirely designed around wide, coalesced loads.
-                Not irregular access or gather/scatter ops.
+                The problem is even worse on TPU hardware, whose VPU is entirely designed around wide, coalesced loads,
+                not irregular access or gather/scatter ops.
             </p>
             <p>
                 The inference speed is therefore limited by the speed of the gather op, and this is well known by
@@ -69,7 +69,7 @@
             <h2>Read-Ports and Banks</h2>
             <p>
                 Every on-chip cache has a certain number of read-ports, determining how many read-requests it can serve
-                at once. It can be seen that the speed of a gather op directly depends on the number of read ports.
+                at once. It can be seen that the speed of a gather op directly depends on the number of read-ports.
             </p>
             <p>
                 The first issue is that you cannot create SRAMs with a huge number of read-ports because the area and
@@ -86,14 +86,14 @@
                 <img src="img/echo/crossbar.png" title="Banks connected via a crossbar"
                     alt="Banks connected via a crossbar">
                 <figcaption>
-                    Figure 3: Illustration of banking with a crossbar interconnect. Taken from <a
+                    Figure 2: Illustration of banking with a crossbar interconnect. Taken from <a
                         href="https://ece752.ece.wisc.edu/lect14-advanced-caches.pdf">these slides</a> on multiported
                     caches.
                 </figcaption>
             </figure>
             <p>
                 But crossbars have similar scaling issues: crossbars have $O(N^2)$ complexity. We cannot have hundreds
-                of read ports because the crossbar interconnect's <u>area and routing complexity would blow up</u>.
+                of read-ports because the crossbar interconnect's <u>area and routing complexity would blow up</u>.
             </p>
             <p>
                 This explains the mismatch in GPUs: each SM has thousands of resident threads, yet the shared memory has
@@ -120,7 +120,8 @@
             </figure>
             <p>
                 Each switch is small and only handles routing a few signals. 2x2 is a common switch size, i.e. 2 inputs
-                routed to 2 outputs. Each switch has a <u>switch state</u>, describing what routing decision its making.
+                routed to 2 outputs. Each switch has a <u>switch state</u>, describing what routing decision it's
+                making.
                 For example, a 2x2 switch could swap its inputs, or route one input to both outputs, etc. The wiring
                 topology allows for these small switches to handle any number of overall inputs and outputs.
             </p>
@@ -200,7 +201,7 @@
             </p>
             <p>
                 First, address packets are injected from the read-ports and make their way through the self-routing
-                control network. Then, switch states are copied to the transfer network, and data packets flows from
+                control network. Then, switch states are copied to the transfer network, and data packets flow from
                 banks back to read-ports, following the same paths in <i>reverse</i>.
             </p>
             <p>
@@ -227,9 +228,9 @@
                 </figcaption>
             </figure>
             <p>
-                This presents an issue: if some packets are dropped in the control phase, those read ports will never
-                receive their data. To solve this, we include <u>retry logic</u>, that sees which read ports finally
-                receive valid data, and selectively re-issues the rest back into the control network:
+                This presents an issue: if some packets are dropped in the control phase, those read-ports will never
+                receive their data. To solve this, we include <u>retry logic</u>, that sees which read-ports
+                successfully receive valid data, and selectively re-issues the rest back into the control network:
             </p>
             <figure>
                 <img src="img/echo/retry_logic.svg" title="Retry Logic Diagram" alt="Retry Logic Diagram">
@@ -286,7 +287,7 @@
                 </figcaption>
             </figure>
             <p>
-                Figure 5 demonstrates switch behaviour in both directions. For example, let's say a switch in the
+                Figure 9 demonstrates switch behaviour in both directions. For example, let's say a switch in the
                 control network decides on the "left-merge" state, i.e. it merges two address packets and forwards them
                 to the left output. Then in the transfer network, the corresponding switch will operate in
                 <i>reverse</i>, i.e. it will duplicate a data packet, enabling multicast behaviour.
@@ -431,7 +432,8 @@ endmodule</code></pre>
                 perform a test PnR implementation on just the core topologies alone, i.e. compare crossbar with Omega
                 Network MIN from a <u>topology-only, pure PnR</u> perspective.
             </p>
-            <p>The code for this test <a>can be found here.</a></p>
+            <p>The code for this test <a href="https://github.com/UditDey/pitch_site/blob/main/code/echo/pnr">can be
+                    found here.</a></p>
             <p>
                 The topology-only RTL was implemented on the <a
                     href="https://skywater-pdk.readthedocs.io/en/main/">SKY130</a> process using <a

@@ -34,7 +34,7 @@
                 KV cache compression is useful. Done well, it can significantly reduce memory footprint, reduce energy
                 consumed in the chip $\leftrightarrow$ HBM link, allow for longer context windows and speed up LLM
                 inference. These are all valuable in the current landscape of scarce memory and skyrocketing data
-                centre power consumption.
+                center power consumption.
             </p>
             <p>
                 Also, this is <a href="https://arxiv.org/abs/2102.00554">not the only place</a> where sparse matrices
@@ -44,7 +44,7 @@
             <p>
                 Bitmaps show up often as a go-to solution for storing sparse data. The general idea is to encode sparse
                 data in a <code>(bitmap, dense_array)</code> pair. The bitmap has one bit for each element, telling us
-                if its zero or not, and the dense array stores the actual values of the non-zeros. This a simple
+                if it's zero or not, and the dense array stores the actual values of the non-zeros. This is a simple
                 compression scheme and provides decent compression ratios, but it has certain limitations.
             </p>
             <p>
@@ -64,7 +64,7 @@
                 zero or not. But what about <code>dense_array</code>? For each lane that encounters a non-zero, how does
                 it know which index of the dense array to write it in? It clearly depends on how many <i>previous</i>
                 non-zeros exist in the data, i.e. lane $N$ needs to know what lane $N-1$, $N-2$, $N-3$, etc did to know
-                its own index for the <code>dense_array</code>
+                its own index for the <code>dense_array</code>.
             </p>
             <p>
                 This is clearly a prefix-sum problem. After forming the <code>bitmap</code>, we need to perform a
@@ -119,7 +119,7 @@
             <div class="callout aside">
                 <strong>Isn't this like <a href="echo.html">the Echo Cache article?</a></strong>
                 <p>
-                    Yes! Somewhat atleast. The problem of gathers being slow is the same, but SSrANS is a general
+                    Yes! Somewhat at least. The problem of gathers being slow is the same, but SSrANS is a general
                     algorithm design, not specifically a hardware design. Moreover, the Echo Cache did not deal with
                     scatters, only gathers. But bitmaps need both. Eliminating scatter/gathers completely is the only
                     solution.
@@ -130,14 +130,14 @@
                 <p>
                     Some hardware units have direct support for loading sparse data. Apple's Neural Engine <a
                         href="https://apple.github.io/coremltools/docs-guides/source/opt-pruning-perf.html">seems to
-                        support RLE</a>, but that is only effective if the zeroes are in continuous groups. If the
-                    zeroes are uniformly spread, then RLE is ineffective, even though the actual entropy content doesn't
-                    care about the location of zeroes.
+                        support RLE</a>, but that is only effective if the zeros are in continuous groups. If the
+                    zeros are uniformly spread, then RLE is ineffective, even though the actual entropy content doesn't
+                    care about the location of zeros.
                 </p>
                 <p>
                     NVIDIA GPUs have support for <a
                         href="https://developer.nvidia.com/blog/structured-sparsity-in-the-nvidia-ampere-architecture-and-applications-in-search-engines/">2:4
-                        sparsity</a> but that is a scheme for structured sparsity only. The zeroes must follow
+                        sparsity</a> but that is a scheme for structured sparsity only. The zeros must follow
                     a 2:4 pattern, but pruning techniques make no guarantee that they will produce such a pattern.
                     Hence the need for an algorithm for general <u>unstructured sparsity</u>.
                 </p>
@@ -170,7 +170,7 @@
                     </li>
                 </ol>
                 <p>
-                    Its worth mentioning that the third link is Yann Collet's blog, the creator of <code>zstd</code>.
+                    It's worth mentioning that the third link is Yann Collet's blog, the creator of <code>zstd</code>.
                 </p>
             </div>
             <p>
@@ -213,7 +213,7 @@
             <ul>
                 <li>$s_t$ is the symbol we encountered at time $t$</li>
                 <li>$X_t$ is the state variable at time $t$</li>
-                <li>$\text{freq}[s_t]$ is the frequency table, telling us expected frequency of symbol $s_t$</li>
+                <li>$\text{freq}[s_t]$ is the frequency table, telling us the expected frequency of symbol $s_t$</li>
                 <li>$\text{cfreq}[s_t]$ is the cumulative frequency table</li>
                 <li>$\text{inv\_cfreq}[slot]$ is a table mapping a slot back to the symbol that can fall in this range
                 </li>
@@ -474,7 +474,7 @@ def decompress(x):
     return s, new_x</code></pre>
             </p>
 
-            We can clearly see it's useful properties:
+            We can clearly see its useful properties:
             <ul>
                 <li>It optimally models sparsity without a 1 bit-per-symbol ceiling (unlike bitmaps)</li>
                 <li>When vectorized, each thread runs these procedures independently with no global
@@ -539,10 +539,12 @@ def decompress(x):
                     For our particular motivation, KV cache pruning, this is acceptable, since pruning typically
                     assumes a target sparsity to begin with, i.e. we already know how much pruning we're going to do.
                     Hence, we already know $S$ before compressing/decompressing the pruned KV cache.
-                </P>
+                </p>
                 <p>
                     In case we don't know $S$ as a constant upfront, we can build a dynamic model, where $S$ is "learnt"
-                    as we process the data-stream.
+                    as we process the data-stream. This is the idea behind <a
+                        href="https://en.wikipedia.org/wiki/Context-adaptive_binary_arithmetic_coding">CABAC
+                        encoding</a> used in several video codecs.
                 </p>
             </div>
 
@@ -594,8 +596,8 @@ def decompress(x):
                 is <u>still 8.5x faster</u> than bitmap.
             </p>
             <p>
-                It should be noted that on TPU, vanilla rANS is the slowest, but on CPU, its in the middle. Goes to show
-                that TPU punishes the three irregular table access of vanilla rANS even harder than the bitmap
+                It should be noted that on TPU, vanilla rANS is the slowest, but on CPU, it's in the middle. This goes
+                to show that TPU punishes the three irregular table accesses of vanilla rANS even harder than the bitmap
                 gather-op, so the trouble of developing the probability model was indeed worth it. Additionally, SSrANS
                 does not need extra VMEM to store frequency tables.
             </p>
@@ -612,12 +614,12 @@ def decompress(x):
                     example: assigning multiple streams per thread.
                 </p>
                 <p>
-                    But the point stands: bitmaps are cheap on GPU, expensive on TPU. And theres a reason why new AI
+                    But the point stands: bitmaps are cheap on GPU, expensive on TPU. And there's a reason why new AI
                     accelerators (that don't have a graphics processing lineage) resemble TPUs, not GPUs.
                 </p>
             </div>
             <p>
-                To round it out, lets compare the compression ratios of all three algorithms. I wrote <a
+                To round it out, let's compare the compression ratios of all three algorithms. I wrote <a
                     href="https://github.com/UditDey/pitch_site/blob/main/code/ssrans/ratio_comparison_graph.py"
                     style="white-space: nowrap">a python script</a> that runs the same randomly generated data at
                 different sparsity values through the three algorithms, and compares the compression ratios:
