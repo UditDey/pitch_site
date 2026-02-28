@@ -52,7 +52,7 @@
                 bitmap scheme takes more bits than what the actual <a
                     href="https://en.wikipedia.org/wiki/Entropy_(information_theory)">Shannon Entropy</a> dictates,
                 since bitmaps have a 1 bit-per-symbol ceiling. Secondly, vectorized compression and decompression under
-                bitmap schemes requires <u>global, cross-lane operations</u>, namely <u>prefix-sums</u>. As well as
+                bitmap schemes requires <u>global, cross-lane operations</u>, namely <u>prefix-sums</u>, as well as
                 large <u>scatter/gather</u> operations. This can result in poor performance on certain AI accelerators,
                 like Google's TPU or AWS's Trainium.
             </p>
@@ -515,7 +515,7 @@ def decompress(x):
             <div class="callout aside">
                 <strong>Choosing $M$</strong>
                 <p>
-                    Note that unlike $N$ and $S$, $M$ isn't a property of the data-stream. Rather, its a constant we
+                    Note that unlike $N$ and $S$, $M$ isn't a property of the data-stream. Rather, it's a constant we
                     have to set. $M$ intuitively controls the "resolution" or "granularity" of the probability model.
                 </p>
                 <p>
@@ -633,7 +633,7 @@ def decompress(x):
                 </figcaption>
             </figure>
             <p>
-                Vanilla rANS and SSrANS closely follow the true Shannon entropy, with SSrANS falling behindwhen $S \gt
+                Vanilla rANS and SSrANS closely follow the true Shannon entropy, with SSrANS falling behind when $S \gt
                 95\%$. But bitmap begins to fall behind as early as $S = 80\%$, with SSrANS giving 4.9x more
                 compression than bitmap at $S = 99\%$. SSrANS therefore provides much better compression ratios than
                 bitmap at high sparsity.
