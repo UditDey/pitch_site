@@ -284,7 +284,6 @@ module ctrl_network #(
     genvar p;
     generate
         for (p = 0; p < N; p = p + 1) begin : expand
-            // Use the external valid signal instead of hardcoded 1'b1
             assign in_pkts[p*PKT_WIDTH +: PKT_WIDTH] = 
                 {req_valids[p], addrs[p*ADDR_WIDTH +: ADDR_WIDTH]};
         end
@@ -393,7 +392,7 @@ module retry_logic #(
 
     // To ctrl_network
     output wire [N*ADDR_WIDTH-1:0]     ctrl_addrs,
-    output wire [N-1:0]                ctrl_valids, // <--- NEW OUTPUT
+    output wire [N-1:0]                ctrl_valids,
     output wire                        ctrl_issue,
 
     // From xfer_network
@@ -401,7 +400,6 @@ module retry_logic #(
     input  wire [N-1:0]                xfer_valid
 );
     localparam ADDR_WIDTH = $clog2(N);
-    // Latency correction: Pipeline depth is 6, wait 5 cycles (cnt 0..4) then capture
     localparam LATENCY    = 2 * $clog2(N); 
 
     // State machine
@@ -450,7 +448,7 @@ module retry_logic #(
                 state_next = STATE_WAIT;
             end
             STATE_WAIT: begin
-                // FIX: -2 to transition into CAPTURE exactly when data arrives
+                // -2 to transition into CAPTURE exactly when data arrives
                 if (lat_cnt == LATENCY - 2) 
                     state_next = STATE_CAPTURE;
             end
@@ -526,7 +524,7 @@ module echo_cache #(
     localparam XFER_PKT_WIDTH = DATA_WIDTH + 1;
 
     wire [N*ADDR_WIDTH-1:0]      ctrl_addrs;
-    wire [N-1:0]                 ctrl_valids; // <--- WIRE
+    wire [N-1:0]                 ctrl_valids;
     wire                         ctrl_issue;
     
     wire [((N/2) * NUM_STAGES)-1:0] did_swaps;
@@ -558,7 +556,7 @@ module echo_cache #(
         .resp_valid(resp_valid),
         .data_out(data),
         .ctrl_addrs(ctrl_addrs),
-        .ctrl_valids(ctrl_valids), // <--- CONNECTED
+        .ctrl_valids(ctrl_valids),
         .ctrl_issue(ctrl_issue),
         .xfer_data(xfer_data),
         .xfer_valid(xfer_valid)
@@ -569,7 +567,7 @@ module echo_cache #(
     ) ctrl (
         .clk(clk),
         .rst(rst),
-        .req_valids(ctrl_valids),  // <--- CONNECTED
+        .req_valids(ctrl_valids),
         .addrs(ctrl_addrs),
         .out_pkts(ctrl_out_pkts),
         .did_swaps(did_swaps),

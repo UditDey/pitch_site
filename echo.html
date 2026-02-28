@@ -56,7 +56,7 @@
                 The inference speed is therefore limited by the speed of the gather op, and this is well known by
                 authors. The <a
                     href="https://www.together.ai/blog/even-better-even-faster-quantized-llms-with-qtip#:~:text=This%20means%20that%20the%20entire%20codebook%20must%20fit%20in%20a%20GPU%E2%80%99s%20L1%20cache%20after%20being%20duplicated%2032%20%28NVIDIA%29%20or%2064%20%28AMD%29%20times%20to%20avoid%20bank%20conflicts">QTIP
-                    authors mention duplication</a> being a limiter to codebook size. Similarly, the <a
+                    authors mention duplication</a> being a limiter of codebook size. Similarly, the <a
                     href="https://arxiv.org/html/2503.02236v2#:~:text=Additionally%2C%20we%20note%20high%20bank%20conflicts%20%283rd%20bar%29%2C%20indicative%20of%20highly%20serialized%20access%20to%20shared%20memory">VQ-LLM
                     authors measure inefficiency</a> caused by bank conflicts and serialization.
             </p>
@@ -160,7 +160,7 @@
             <p>Our task now is to design a bank $\leftrightarrow$ virtual-port interconnect that:</p>
             <ul>
                 <li>Uses MINs instead of crossbars</li>
-                <li>Incurs low amount of serialization</li>
+                <li>Incurs a low amount of serialization</li>
             </ul>
 
             <p>For this, I present the <b>Echo Cache</b>:</p>
@@ -295,11 +295,10 @@
 
             <h2>RTL Functional Model</h2>
             <p>
-                I developed a proof-of-concept RTL implementation of the Echo Cache utilizing 2x2 switches with the
-                Omega Network topology. The full code <a
+                I developed a proof-of-concept RTL implementation and testbench for the Echo Cache utilizing 2x2
+                switches with the Omega Network topology. The full code <a
                     href="https://github.com/UditDey/pitch_site/blob/main/code/echo/model">can be found here</a>. It
-                proves
-                that the concept works, and the retry logic is sound.
+                proves that the concept works, and the retry logic is sound.
             </p>
             <p>
                 Let's look at the switch modules. This should give an idea of the packets flowing through both networks,
@@ -502,7 +501,22 @@ endmodule</code></pre>
             </p>
 
             <h2>Conclusion</h2>
-
+            <p>
+                In this article we started with LLM codebook compression, and discussed how random access patterns
+                during decompression cause bank-conflicts and serialization. We saw why the number of virtual read-ports
+                in a typical banked cache design is limited by the $O(N^2)$ complexity of the crossbar interconnect.
+            </p>
+            <p>
+                To solve this, we introduced the <b>Echo Cache</b>, a dual phase design that replaces the crossbar with
+                Multistage Interconnection Networks, which have a cheaper $O(N \log N)$ complexity. Addresses travel
+                from read-ports to banks, and then data travels from banks to read=ports, tracing the same path in
+                reverse.
+            </p>
+            <p>
+                We confirmed functionality with an RTL model, and then performed a topology-only PnR test on the SKY130
+                process, which proved Echo Cache's superior area scaling relative to a crossbar for the same number of
+                ports, a gap that only widens with port count.
+            </p>
         </div>
     </main>
 
