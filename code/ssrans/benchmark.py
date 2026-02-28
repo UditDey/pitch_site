@@ -1,23 +1,3 @@
-"""
-TPU Microbenchmark: SSrANS vs Bitmap vs Vanilla rANS
-
-Compares three decompression methods on a sparse probability model
-(80% sparsity, alphabet=256, M=4096). All methods produce the same
-number of output symbols per run, enabling direct comparison.
-
-  SSrANS:  S parallel streams, each decoding TOTAL_SYMBOLS/S symbols
-           via pure arithmetic (no table lookups).
-
-  Bitmap:  128 packed uint32 words decoded via popcount, prefix-sum,
-           and data-dependent gather from a dense value array.
-
-  vRaNS:   S parallel streams using table-driven rANS decode
-           (3 table lookups per symbol).
-
-The key result: SSrANS throughput scales with stream count S.
-Bitmap throughput is fixed (gather-bound). Crossover at S ≈ 8.
-"""
-
 import jax
 import jax.numpy as jnp
 import jax.lax as lax
@@ -25,31 +5,40 @@ import functools
 import timeit
 
 # ============================================================
-# Model parameters
+# Constants
 # ============================================================
 LOG_M    = 12
-M        = 1 << LOG_M       # 4096
+M        = 1 << LOG_M # 4096
 ALPHABET = 256
 SPARSITY = 0.8
 
+
+# ============================================================
+# SSrANS Constants
+# ============================================================
 F_NONZERO = max(1, round(M * (1 - SPARSITY) / (ALPHABET - 1)))
 F_ZERO    = M - (ALPHABET - 1) * F_NONZERO
 assert F_ZERO >= 1 and F_NONZERO >= 1
 assert F_ZERO + (ALPHABET - 1) * F_NONZERO == M
 
-# Vanilla rANS lookup tables
-_freq  = [F_NONZERO] * ALPHABET; _freq[0] = F_ZERO
-_cfreq = [0] * ALPHABET
-for _s in range(1, ALPHABET):
-    _cfreq[_s] = _cfreq[_s - 1] + _freq[_s - 1]
-_inv_cfreq = [0] * M
-for _s in range(ALPHABET):
-    for _i in range(_freq[_s]):
-        _inv_cfreq[_cfreq[_s] + _i] = _s
 
-FREQ_TABLE      = jnp.array(_freq, dtype=jnp.int32)
-CFREQ_TABLE     = jnp.array(_cfreq, dtype=jnp.int32)
-INV_CFREQ_TABLE = jnp.array(_inv_cfreq, dtype=jnp.int32)
+# ============================================================
+# Vanilla rANS Tables
+# ============================================================
+freq  = [F_NONZERO] * ALPHABET; freq[0] = F_ZERO
+cfreq = [0] * ALPHABET
+for s in range(1, ALPHABET):
+    cfreq[s] = cfreq[s - 1] + freq[s - 1]
+
+inv_cfreq = [0] * M
+for s in range(ALPHABET):
+    for i in range(freq[s]):
+        inv_cfreq[cfreq[s] + i] = s
+
+FREQ_TABLE      = jnp.array(freq, dtype=jnp.int32)
+CFREQ_TABLE     = jnp.array(cfreq, dtype=jnp.int32)
+INV_CFREQ_TABLE = jnp.array(inv_cfreq, dtype=jnp.int32)
+
 
 # ============================================================
 # Benchmark parameters
@@ -68,15 +57,10 @@ MASKS_BELOW   = jnp.array([(1 << j) - 1 for j in range(BITS_PER_WORD)], dtype=jn
 
 
 # ============================================================
-# Kernels
+# SSrANS Kernel
 # ============================================================
-def popcount32(x):
-    return lax.population_count(x.astype(jnp.uint32)).astype(jnp.int32)
-
-
 @functools.partial(jax.jit, static_argnums=(1, 2))
 def bench_ssrans(init_states, n_symbols_per_stream, n_runs):
-    """SSrANS: table-free decode via arithmetic on sparse model."""
     def decode_one(carry, _):
         state, cksum = carry
         slot = state & (M - 1)
@@ -89,20 +73,19 @@ def bench_ssrans(init_states, n_symbols_per_stream, n_runs):
 
     def one_run(carry, _):
         init_state, cksum = carry
-        (final_state, cksum), _ = lax.scan(
-            decode_one, (init_state, cksum), None, length=n_symbols_per_stream)
+        (final_state, cksum), _ = lax.scan(decode_one, (init_state, cksum), None, length=n_symbols_per_stream)
         next_init = init_state ^ (final_state & 0xFF)
         return (next_init, cksum), None
 
-    (_, cksum), _ = lax.scan(
-        one_run, (init_states, jnp.zeros_like(init_states)), None, length=n_runs)
+    (_, cksum), _ = lax.scan(one_run, (init_states, jnp.zeros_like(init_states)), None, length=n_runs)
     return cksum.sum()
 
 
+# ============================================================
+# Vanilla rANS Kernel
+# ============================================================
 @functools.partial(jax.jit, static_argnums=(4, 5))
-def bench_vanilla_rans(init_states, freq_table, cfreq_table, inv_cfreq_table,
-                       n_symbols_per_stream, n_runs):
-    """Vanilla rANS: table-driven decode (3 lookups per symbol)."""
+def bench_vanilla_rans(init_states, freq_table, cfreq_table, inv_cfreq_table, n_symbols_per_stream, n_runs):
     def decode_one(carry, _):
         state, cksum = carry
         slot = state & (M - 1)
@@ -114,19 +97,22 @@ def bench_vanilla_rans(init_states, freq_table, cfreq_table, inv_cfreq_table,
 
     def one_run(carry, _):
         init_state, cksum = carry
-        (final_state, cksum), _ = lax.scan(
-            decode_one, (init_state, cksum), None, length=n_symbols_per_stream)
+        (final_state, cksum), _ = lax.scan(decode_one, (init_state, cksum), None, length=n_symbols_per_stream)
         next_init = init_state ^ (final_state & 0xFF)
         return (next_init, cksum), None
 
-    (_, cksum), _ = lax.scan(
-        one_run, (init_states, jnp.zeros_like(init_states)), None, length=n_runs)
+    (_, cksum), _ = lax.scan(one_run, (init_states, jnp.zeros_like(init_states)), None, length=n_runs)
     return cksum.sum()
 
 
+# ============================================================
+# Bitmap Kernel
+# ============================================================
 @functools.partial(jax.jit, static_argnums=(3,))
 def bench_bitmap(packed_bitmap, dense_vals, perturbations, n_runs):
-    """Packed bitmap: popcount + prefix-sum + gather via (128,32) broadcast."""
+    def popcount32(x):
+        return lax.population_count(x.astype(jnp.uint32)).astype(jnp.int32)
+    
     def one_run(cksum, perturb):
         bm = packed_bitmap ^ (perturb.astype(jnp.uint32) & jnp.uint32(1))
 
@@ -186,10 +172,7 @@ def time_fn(fn, args):
     return sum(times) / len(times)
 
 
-# ============================================================
-# Main
-# ============================================================
-def main():
+if __name__ == "__main__":
     print(f"JAX {jax.__version__}  |  {jax.devices()[0]}  |  Backend: {jax.default_backend()}")
     print()
     print(f"Model:  M={M}, alphabet={ALPHABET}, sparsity={SPARSITY} "
@@ -248,7 +231,3 @@ def main():
 
     print()
     print("BM/SS: bitmap time ÷ SSrANS time (>1× means SSrANS is faster)")
-
-
-if __name__ == "__main__":
-    main()

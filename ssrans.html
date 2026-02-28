@@ -497,7 +497,7 @@ def decompress(x):
                 One simple rounding strategy is:
             <pre><code class="language-python">def round_ssrans_params(M, N, S):
     # Step 1: Round F_nonzero to nearest integer, minimum 1
-    F_nonzero = max(1, round(M / ((N - 1) * (S + 1))))
+    F_nonzero = max(1, round(M * (1 - S) / (N - 1)))
 
     # Step 2: Derive F_zero from the constraint M = F_zero + (N-1) * F_nonzero
     F_zero = M - (N - 1) * F_nonzero
@@ -633,8 +633,8 @@ def decompress(x):
                 </figcaption>
             </figure>
             <p>
-                Vanilla rANS and SSrANS closely follow the true Shannon entropy, with SSrANS falling slightly behind
-                when $S \gt 95\%$. But bitmap begins to fall behind as early as $S = 80\%$, with SSrANS giving 4.9x more
+                Vanilla rANS and SSrANS closely follow the true Shannon entropy, with SSrANS falling behindwhen $S \gt
+                95\%$. But bitmap begins to fall behind as early as $S = 80\%$, with SSrANS giving 4.9x more
                 compression than bitmap at $S = 99\%$. SSrANS therefore provides much better compression ratios than
                 bitmap at high sparsity.
             </p>
