@@ -227,18 +227,44 @@
                     reverse. This is what allows the banks to "multicast" data to read-ports, reducing serialization.
                 </figcaption>
             </figure>
-            <figure>
-                <iframe src="img/echo/animation.html" title="Echo Cache Animation" width="100%" height="340"
-                    style="border:0; display:block;" loading="lazy"></iframe>
+            <!--<figure>
+                <video src="img/echo/animation.mp4" autoplay loop muted playsinline controls
+                    style="display:block; width:100%; height:auto;"></video>
                 <figcaption>
-                    Figure 6: Animation of the Echo Cache. As addresses flow down the control network, switches
-                    make local routing decisions. Those decisions are copied to the transfer network and played in
-                    reverse.
+                    Figure 6: Animation of the Echo Cache. There are 8 read-ports demanding addresses
+                    <code>[2, 2, 3, 5, 5, 5, 6, 6]</code>. Note how requests are merged and duplicated. Multiple ports
+                    demanding the same address does not cause blocking here. The network naturally handles multicast.
+                </figcaption>
+            </figure>-->
+            <figure>
+                <div id="echo-viz-slot"></div>
+                <figcaption>
+                    Figure 6: Animation of the Echo Cache. There are 8 read-ports demanding addresses
+                    <code>[2, 2, 3, 5, 5, 5, 6, 6]</code>. Note how requests are merged and duplicated. Multiple ports
+                    demanding the same address does not cause blocking here. The network naturally handles multicast.
                 </figcaption>
             </figure>
+            <script type="module">
+                async function loadEchoViz() {
+                    const slot = document.getElementById("echo-viz-slot");
+                    const html = await fetch("img/echo/animation_snippet.html").then(r => r.text());
+                    slot.innerHTML = html;
+
+                    // IMPORTANT: scripts inserted via innerHTML do not execute automatically
+                    // So we re-create them so the animation runs.
+                    slot.querySelectorAll("script").forEach(old => {
+                        const s = document.createElement("script");
+                        // copy attributes (if any)
+                        for (const attr of old.attributes) s.setAttribute(attr.name, attr.value);
+                        s.textContent = old.textContent;
+                        old.replaceWith(s);
+                    });
+                }
+                loadEchoViz();
+            </script>
             <p>
-                This presents an issue: if some packets are dropped in the control phase, those read-ports will never
-                receive their data. To solve this, we include <u>retry logic</u>, that sees which read-ports
+                But this presents an issue: if some packets are dropped in the control phase, those read-ports will
+                never receive their data. To solve this, we include <u>retry logic</u>, that sees which read-ports
                 successfully receive valid data, and selectively re-issues the rest back into the control network:
             </p>
             <figure>
