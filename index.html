@@ -15,25 +15,28 @@
             <h1>Improving Memory Efficiency in LLM Inference</h1>
             <p class="subtitle">Three Proposals for the Next-Gen of Inference</p>
 
+            <p>Hello! 👋</p>
             <p>
                 I'm a junior engineer in the semiconductor industry. Recently, inspired by the
-                ongoing DRAM crisis (caused largely by AI inference demand), I went down a rabbit
-                hole exploring how to make LLM inference less memory hungry. This page documents
-                what came out of that.
+                ongoing DRAM crisis (directly caused by AI inference demand), I started to explore research on making
+                LLMs more memory efficient.
             </p>
             <p>
-                I ended up with three proposals that turned out to be more connected than I
-                initially expected. Together they form something like a memory subsystem for
-                codebook-compressed LLM inference:
+                My focus is on techniques that go beyond simple quantization, since I believe quantization has reached
+                its limit. The next-gen of mass-scale LLM inference will need different tools.
+            </p>
+            <p>
+                This page documents some of my efforts. I focus on <b>codebook compression</b> of weights, and
+                <b>unstructured KV cache pruning</b>.
             </p>
             <ul>
-                <li><b>CCPO</b> makes codebook compression more viable by patching outlier weights</li>
                 <li><b>Echo Cache</b> provides the hardware to decompress codebook indices at high throughput</li>
-                <li><b>SSrANS</b> handles the sparse data that CCPO produces (and sparse data in general)</li>
+                <li><b>CCPO</b> makes codebook compression more viable by patching outlier weights</li>
+                <li><b>SSrANS</b> handles compression and decompression of unstructured sparse data</li>
             </ul>
             <p>
-                Everything builds on existing academic work — no wheels are reinvented. The code
-                is all public. I'll be upfront about limitations in each article.
+                Everything builds on existing academic work — no wheels are reinvented, and each article includes code
+                and diagrams for clear explanation.
             </p>
 
             <div class="callout aside">
@@ -57,8 +60,7 @@
                 <li>Parallel/vector processors (in general)</li>
             </ul>
 
-            <a href="prereq.html">Click here for a primer</a> on the terms used in
-            this document.
+            <a href="prereq.html">Click here for a primer</a> on the terms I use in the articles.
 
             <hr>
 
@@ -69,18 +71,18 @@
                 <img src="img/echo/dual_omega_storage.svg" title="Echo Cache Diagram">
             </figure>
             <p>
-                A banked cache designed for high-throughput, parallel codebook decompression of LLM weights.
-                It uses a pair of <a href="https://en.wikipedia.org/wiki/Multistage_interconnection_networks">Multistage
+                A banked cache designed for high-throughput, wide gather operations. It uses a pair of <a
+                    href="https://en.wikipedia.org/wiki/Multistage_interconnection_networks">Multistage
                     Interconnection Networks (MINs)</a> to connect banks to virtual
                 read ports, replacing the crossbar. Addresses travel from read ports to banks,
                 data travels back like an echo, tracing the same path in reverse. Packet merging
                 in the MIN enables broadcast, reducing serialization.
             </p>
             <p>
-                I have a proof-of-concept RTL model and PnR results on SKY130 showing ~65% lower
-                die area than the equivalent crossbar topology.
+                This is presented in the context of fast codebook lookups of LLM weights, but its a general design for a
+                gather oriented cache.
             </p>
-            <p><a href="echo.html">Read more →</a></p>
+            <p><a href="echo.html">Click here to read more 👈</a></p>
 
 
             <div class="dot-break"></div>
@@ -89,16 +91,16 @@
                 <img src="img/ssrans/ssrans_formula.png" title="SSrANS">
             </figure>
             <p>
-                A parallel compression/decompression algorithm for sparse data. The key insight:
+                A parallel compression/decompression algorithm for unstructured sparse data. The key insight:
                 if your data is sparse, you can replace rANS frequency table lookups with a
                 trivially computable probability model, eliminating all irregular memory accesses
                 and cross-lane operations. Each thread runs independently in pure SIMD fashion.
             </p>
             <p>
-                Benchmarked on TPU v5e-1: 20.2x faster than bitmap compression. On CPU (AVX2):
-                still 8.5x faster. Code and benchmarks are public.
+                This is particularly useful for TPU hardware, whose VPU is unfriendly to bitmap compression schemes
+                due to slow scatter/gather.
             </p>
-            <p><a href="ssrans.html">Read more →</a></p>
+            <p><a href="echo.html">Click here to read more 👈</a></p>
 
 
             <div class="dot-break"></div>
@@ -115,23 +117,11 @@
                 single-layer experiment.
             </p>
             <p>
-                The sparse patches can be intermixed into the index stream and decoded with
-                entropy coding (like SSrANS), so the full decompression pipeline stays free of
-                irregular memory access. This is the piece that makes codebook compression more
-                viable, which in turn makes dedicated hardware like the Echo Cache worth building.
+                The sparse patches can be intermixed into the index stream and decoded with entropy coding (akin to
+                SSrANS), so the full decompression pipeline stays compact and free of irregular memory access. This is
+                the piece that makes codebook compression more viable.
             </p>
-            <p>
-                Caveat: this is a single-layer micro-demonstration, not a full end-to-end LLM
-                evaluation. I'm upfront about that in the article.
-            </p>
-            <p><a href="ccpo.html">Read more →</a></p>
-
-            <hr>
-
-            <h2>About Me</h2>
-            <p>
-                <!-- FILL IN -->
-            </p>
+            <p><a href="echo.html">Click here to read more 👈</a></p>
         </div>
     </main>
 
