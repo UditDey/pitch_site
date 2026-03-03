@@ -667,19 +667,14 @@ def decompress(x):
 
             <h2>Future Work</h2>
             <p>
-                Even apart from deliberate pruning, KV caches are known to naturally have non-uniform distribution. The
-                <a href="https://arxiv.org/html/2509.00579v1#:~:text=3%2E-,Design%20Methodology">KVComp authors plotted
-                    histograms</a> of quantized KV caches and showed a clear unimodal distribution.
-            </p>
-            <p>Similarly, activations and weights are also known to naturally have peaky, unimodal distributions.</p>
-            <p>
-                This creates a promising future direction: table-free probability models for unimodal data. A simple
-                triangle function might work well, while being computationally light enough.
+                SSrANS fits well with <a href="https://arxiv.org/abs/2405.14270">Sparse Autoencoder (SAE)
+                    compression</a>. The idea is to map data to a high dimensional but sparse latent space, which has
+                low entropy, and then compress it using SSrANS.
             </p>
             <p>
-                This case has an even stronger argument because sparse data has bitmap representations, but unimodal
-                data has no analogue. So, even on GPUs, we would be forced to use entropy coding, and our zero-lookup
-                approach would be especially useful.
+                This can provide another technique for compessing LLM weights. Neural codecs have already <a
+                    href="https://arxiv.org/abs/2510.11234">been applied to LLM weights</a>, and using SAEs is
+                another potent approach.
             </p>
         </div>
     </main>
