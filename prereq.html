@@ -21,35 +21,34 @@
             <h1>Prerequisite Concepts</h1>
 
             <h2 id="vector_processors">Vector Processors</h2>
-            <p>This refers to SIMD/SIMT style parallel processors that run <u>multiple threads</u>
-                (or lanes in some contexts) <u>in lockstep</u>. This definition covers:
+            <p>This refers to SIMD/SIMT style parallel processors that run multiple threads (or lanes) in lockstep. This
+                definition covers:
             <ul>
                 <li>CPU SIMD (AVX, NEON, etc)</li>
-                <li>GPUs (which are built on a SIMT model)</li>
-                <li>Vector units in other AI inference hardware (like TPUs)</li>
+                <li>GPUs</li>
+                <li>Vector units in other AI inference hardware (like TPU's VPU)</li>
             </ul>
             </p>
             <p>
-                A crucial property of any good vector processor is <u>coalescing reads</u>. If the
-                threads issue memory read-requests at <u>consecutive addresses</u>, (ex: $A, A + S, A + 2S$ etc)
+                A crucial property of any good vector processor is <u>coalesced reads</u>. If the
+                threads issue memory read-requests at consecutive addresses, (ex: $A, A + S, A + 2S$ etc)
                 then the processors can coalesce those reads into one large contigous read-request.
-                Thus, consecutive addresses are an <u>efficient memory access pattern</u>
+                Thus, consecutive addresses are an efficient memory access pattern.
             </p>
             <p>
-                On the flipside, if the threads issue read-requests at <u>random/irregular addresses</u>, then no
+                In contrast, if the threads issue read-requests at random/irregular addresses, then no
                 coalescion is possible, and this must be implemented as a <a
                     href="https://en.wikipedia.org/wiki/Gather/scatter_(vector_addressing)">gather operation</a>.
-                This is an <u>inefficient memory access pattern</u>, and the speed at which the hardware
-                can serve such random reads is determined by the number of <u>read-ports</u> and <U>banking</U>
-                structure of the cache the threads are reading from. Not all reads can be served in parallel and
-                therefore
-                <u>serialization</u> takes place. This can also be called a kind of <u>time division multiplexing</u>.
+                This is an <u>inefficient memory access pattern</u>, and the speed at which the hardware can serve such
+                random reads is determined by the number of read-ports and banking structure of the cache
+                the threads are reading from. Not all reads can be served in parallel and therefore <u>serialization</u>
+                takes place.
             </p>
 
             <div class="dot-break"></div>
             <h2 id="codebook_compression">LLM Codebook Compression/Quantization</h2>
             <p>
-                The idea is simple:
+                Also called codebook quantization, vector quantization or product quantization. The idea is simple:
             <ul>
                 <li>Group weights along rows of the weight matrix</li>
                 <li>Create a representative "codebook" containing vectors that approximate weight groups</li>
@@ -81,27 +80,18 @@
             <div class="dot-break"></div>
             <h2>Pruning and Sparsity</h2>
             <p>
-                Pruning refers to <u>removing unimportant entries</u> from a matrix, <u>replacing them with zeroes</u>.
-                The definition of "unimportant" depends on the context, and typically there is some kind of
-                <u>importance metric</u> we use to rank entries.
+                Pruning refers to removing unimportant entries from a matrix and replacing them with zeroes. The
+                definition of "unimportant" depends on the context, and typically there is some kind of importance
+                metric we use to rank entries.
             </p>
             <p>
                 After pruning, the matrix has become more <u>sparse</u>, i.e. the ratio of zeroes has increased.
             </p>
             <p>
-                An important distinction to be made is between <u>structured</u> and <u>unstructured</u> sparsity, i.e.
-                whether or not the positions of zeroes follows some known structure (like <a
-                    href="https://developer.nvidia.com/blog/structured-sparsity-in-the-nvidia-ampere-architecture-and-applications-in-search-engines/">2:4</a>).
-            </p>
-
-            <div class="dot-break"></div>
-            <h2 id="kv_pruning">KV Cache Pruning</h2>
-            <p>
-                Pruning applied to LLM KV Caches. I refer the reader to: <a
-                    href="https://arxiv.org/abs/2505.22913">MUSTAFAR</a>, <a
-                    href="https://arxiv.org/abs/2306.14048">H2O</a>
-                and <a href="https://arxiv.org/abs/2508.15212">SparK</a>. TODO: Why important? DISTINGUISH PRUNING VS
-                TOKEN EVICTION
+                An important distinction to be made is between <u>structured</u> and <u>unstructured</u> sparsity. Data
+                with structured sparsity follows some known structure (like <a
+                    href="https://developer.nvidia.com/blog/structured-sparsity-in-the-nvidia-ampere-architecture-and-applications-in-search-engines/">2:4</a>)
+                in the positions of zeros. Unstructured sparsity has no rules.
             </p>
 
             <div class="dot-break"></div>

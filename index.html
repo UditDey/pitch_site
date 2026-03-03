@@ -26,7 +26,7 @@
                 its limit. The next-gen of mass-scale LLM inference will need different tools.
             </p>
             <p>
-                This page documents some of my efforts. I focus on <b>codebook compression</b> of weights, and
+                This page documents some of my efforts. I focus on <b>codebook compression of LLM weights</b>, and
                 <b>unstructured KV cache pruning</b>.
             </p>
             <ul>
@@ -91,9 +91,9 @@
                 <img src="img/ssrans/ssrans_formula.png" title="SSrANS">
             </figure>
             <p>
-                A parallel compression/decompression algorithm for unstructured sparse data. The key insight:
-                if your data is sparse, you can replace rANS frequency table lookups with a
-                trivially computable probability model, eliminating all irregular memory accesses
+                Motivated by KV cache pruning, SSrANS is a parallel compression/decompression algorithm for unstructured
+                sparse data. The key insight: if your data is sparse, you can replace rANS frequency table lookups with
+                a trivially computable probability model, eliminating all irregular memory accesses
                 and cross-lane operations. Each thread runs independently in pure SIMD fashion.
             </p>
             <p>

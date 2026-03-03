@@ -702,9 +702,9 @@
             function hidePkt(els, i) { els[i].style.display = "none"; }
             function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
 
-            const SD = 500, SP = 220, NS = 5;
+            const SD = 490, SP = 210, NS = 5;
             const FLOW = NS * SD + (NS - 1) * SP;
-            const PHASES = [20, FLOW, 600, 800, 50, FLOW, 1200, 200];
+            const PHASES = [20, FLOW, 500, 800, 50, FLOW, 1200, 200];
             const TOTAL = PHASES.reduce((a, b) => a + b, 0);
 
             function stepFromFlow(flowT) {
