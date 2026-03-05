@@ -454,6 +454,22 @@
                 I hope that techniques like CCPO, in conjunction with my proposed Echo Cache, are the missing link that
                 make LLM codebook compression more viable, and bring in an era of memory efficient LLM inference.
             </p>
+
+            <h2>Future Work</h2>
+            <p>
+                This article's saliency metric resembles that of typical pruning techniques, which mostly use magnitude
+                or Hessian based metrics
+            </p>
+            <p>
+                But there is a growing body of pruning and quantization work that uses task specific, <u>mechanistic
+                    interpretability</u> based metrics, i.e. start measuring how perturbing weights affects downstream
+                task scores, instead of just magnitudes:
+            </p>
+            <p>
+                For example, <a href="https://arxiv.org/abs/2504.07389">TaCQ</a> specifically notes $5.25\%$ better MMLU
+                scores than SpQR. This new field of interpretability driven quantization can further help us in spending
+                our limited CPPO patching budget wisely.
+            </p>
         </div>
     </main>
 
