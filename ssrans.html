@@ -113,8 +113,7 @@
                 KV cache compression are offset by the slow bitmap decompression times. The purpose of this article is
                 to address precisely that. I present <b>Sparsity-Specialized rANS (SSrANS)</b>, a compression algorithm
                 for sparse data that has <u>no global cross-lane operations</u> and <u>no gather/scatters</u>. Each lane
-                can operate entirely independently in a "pure SIMD" fashion. It is particularly suitable for pruning
-                techniques like MUSTAFAR, where sparsity is known ahead of time.
+                can operate entirely independently in a "pure SIMD" fashion.
             </p>
             <div class="callout aside">
                 <strong>Isn't this like <a href="echo.html">the Echo Cache article?</a></strong>
