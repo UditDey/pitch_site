@@ -129,8 +129,6 @@ def vanilla_rans_decode(stream, freq, cfreq, inv_cfreq, n_symbols):
 # SSrANS Probability Model
 # ============================================================
 def round_ssrans_params(M, N, S):
-    """Round F_zero and F_nonzero to integers while maintaining
-    M = F_zero + (N-1) * F_nonzero."""
     F_nonzero = max(1, round(M * (1 - S) / (N - 1)))
     F_zero = M - (N - 1) * F_nonzero
     if F_zero < 1:
@@ -162,15 +160,18 @@ def ssrans_encode(data, F_zero, F_nonzero):
     stream = []
 
     for s in reversed(data):
+        # Key difference between SSrANS and vanilla rANS!!
         f = ssrans_freq(s, F_zero, F_nonzero)
         cf = ssrans_cfreq(s, F_zero, F_nonzero)
         assert f > 0
 
+        # Renormalize: push bytes until state is small enough
         x_max = ((RANS_L >> LOG_M) << 8) * f
         while state >= x_max:
             stream.append(state & 0xFF)
             state >>= 8
 
+        # Core rANS encode step
         state = (state // f) * M + cf + (state % f)
 
     for _ in range(4):
