@@ -1,1 +1,1 @@
-Redirect to [https://github.com/UditDey/pitch_site](https://github.com/UditDey/pitch_site)
+Redirect to [https://github.com/UditDey/llm_comp](https://github.com/UditDey/llm_comp)
